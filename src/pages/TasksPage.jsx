@@ -1,7 +1,6 @@
-import ListGroup from 'react-bootstrap/ListGroup';
-import { Card } from 'react-bootstrap';
-import TaskList from '../components/TasksList';
-import ChildTasksList from '../components/ChildTasksList';
+
+import TasksList from '../components/TasksList';
+
 
 function TasksPage(){
 
@@ -11,7 +10,7 @@ function TasksPage(){
 
   return (
     <div>
-        <TaskList />
+        <TasksList />
         
     </div>
   );

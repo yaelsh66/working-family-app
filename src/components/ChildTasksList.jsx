@@ -42,6 +42,16 @@ function ChildTasksList() {
     );
   }
 
+  const handleComplete = async (task) => {
+  try {
+    await addToPendingTime(task.time);  // ✅ update time context
+    await sendApprovalRequest(task.parentId, task, user.uid, user.token);  // ✅ send to parent
+    alert("✅ Task submitted for approval!");
+  } catch (err) {
+    console.error("❌ Failed to complete task:", err);
+  }
+};
+
   return (
     <Container className="mt-5" style={{ maxWidth: '800px' }}>
       <h2 className="mb-4">📋 Task List</h2>
@@ -49,7 +59,14 @@ function ChildTasksList() {
       {tasks.length === 0 ? (
         <Alert variant="info">No tasks available yet.</Alert>
       ) : (
-        tasks.map((task, idx) => <TaskItem key={idx} task={task} />)
+        tasks.map((task, idx) => (
+          <div>
+        <TaskItem key={idx} task={task} />
+         <Button variant="outline-primary" onClick={() => handleComplete(task)}>
+      ✅ Complete
+        </Button>
+        </div>
+      ))
       )}
     </Container>
   );

@@ -3,9 +3,7 @@ import React from 'react';
 import { Draggable } from '@hello-pangea/dnd';
 import TaskItem from './TaskItem';
 
-function TaskDraggable({ task, index, isAssigned }) {
-
-  
+function TaskDraggable({ task, index, isAssigned, onComplete }) {
   return (
     <Draggable draggableId={task.id} index={index}>
       {(provided, snapshot) => (
@@ -22,9 +20,11 @@ function TaskDraggable({ task, index, isAssigned }) {
             borderRadius: '0.25rem',
           }}
         >
-          <TaskItem 
-          task={task} 
-           />
+          <TaskItem
+            task={task}
+            isAssigned={isAssigned}
+            onComplete={onComplete}  // ✅ pass the complete handler
+          />
         </div>
       )}
     </Draggable>
@@ -32,4 +32,3 @@ function TaskDraggable({ task, index, isAssigned }) {
 }
 
 export default TaskDraggable;
-

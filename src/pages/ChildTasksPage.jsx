@@ -91,6 +91,86 @@ function ChildTasksPage() {
   }
 };
 
+const handleComplete = async (task) => {
+  try {
+    // 1. Create the completion record payload
+    const completionRecord = {
+      fields: {
+        taskId: { stringValue: task.id },
+        title: { stringValue: task.title },
+        completedAt: { timestampValue: new Date().toISOString() },
+        time: {
+          doubleValue:
+            typeof task.time === 'number'
+              ? task.time
+              : parseFloat(task.time) || 0,
+        },
+        childId: { stringValue: user.uid },
+        familyId: { stringValue: user.familyId },
+        approved: { booleanValue: false }
+      },
+    };
+
+    // 2. Save the completion record
+    await fetch(
+      `https://firestore.googleapis.com/v1/projects/family-c56e3/databases/(default)/documents/completions`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${user.token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(completionRecord),
+      }
+    );
+
+    // 3. Remove child from assignedTo array in the task document in Firestore
+    // This is your existing updateTaskAssignment function (or implement here)
+    const newAssignedTo = (task.assignedTo || []).filter(uid => uid !== user.uid);
+    await updateTaskAssignment(task.id, newAssignedTo, user.token);
+
+    // 4. Update child's pendingTime in their user document
+    // Fetch current pendingTime (you may have it cached, else fetch from Firestore)
+    const userDocUrl = `https://firestore.googleapis.com/v1/projects/family-c56e3/databases/(default)/documents/users/${user.uid}`;
+    
+    // Get current user doc
+    const userRes = await fetch(userDocUrl, {
+      headers: { Authorization: `Bearer ${user.token}` },
+    });
+    const userData = await userRes.json();
+    const currentPendingTime = userData.fields?.pendingTime?.integerValue
+      ? parseInt(userData.fields.pendingTime.integerValue)
+      : 0;
+
+    // Update pendingTime
+    const updatedPendingTime = currentPendingTime + (typeof task.time === 'number' ? task.time : parseFloat(task.time) || 0);
+
+    const updatePayload = {
+      fields: {
+        pendingTime: { integerValue: updatedPendingTime.toString() }
+      }
+    };
+
+    await fetch(userDocUrl + '?updateMask.fieldPaths=pendingTime', {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${user.token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(updatePayload),
+    });
+
+    // 5. Remove task locally from assignedTasks state so UI updates
+    setAssignedTasks((prev) => prev.filter((t) => t.id !== task.id));
+
+    // 6. Notify user
+    alert(`✅ Task "${task.title}" marked as completed! Waiting for approval.`);
+  } catch (error) {
+    console.error('Failed to mark task as completed:', error);
+    alert('❌ Failed to complete task. Try again later.');
+  }
+};
+
 
 
 
@@ -123,7 +203,7 @@ function ChildTasksPage() {
               {(provided) => (
                 <div ref={provided.innerRef} {...provided.droppableProps}>
                   {assignedTasks.map((task, idx) => (
-                    <TaskDraggable key={task.id} task={task} index={idx} isAssigned={true} />
+                    <TaskDraggable key={task.id} task={task} index={idx} isAssigned={true} onComplete={handleComplete} />
                   ))}
                   {provided.placeholder}
                 </div>
@@ -150,7 +230,7 @@ function ChildTasksPage() {
 
 <AmountBox
   label="Future Potential"
-  amount={assignedTotal}
+  time={assignedTotal}
   variant="info"
   size="large"
   icon="💡"

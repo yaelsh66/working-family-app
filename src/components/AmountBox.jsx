@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card } from 'react-bootstrap';
 
-function AmountBox({ label, amount, size = 'medium', icon }) {
+function AmountBox({ label, time, size = 'medium', icon }) {
   const sizeStyles = {
     small: { fontSize: '1rem', padding: '0.5rem 1rem' },
     medium: { fontSize: '1.5rem', padding: '1rem 1.5rem' },
@@ -22,7 +22,7 @@ function AmountBox({ label, amount, size = 'medium', icon }) {
         <div className="d-flex justify-content-between align-items-center">
           <div>
             <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>{label}</div>
-            <div style={{ fontWeight: 'bold' }}>{amount} min</div>
+            <div style={{ fontWeight: 'bold' }}>{time} min</div>
           </div>
           {icon && <div style={{ fontSize: '1.5rem' }}>{icon}</div>}
         </div>
