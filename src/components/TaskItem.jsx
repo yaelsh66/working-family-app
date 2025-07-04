@@ -10,7 +10,7 @@ function TaskItem({ task , showCompleteButton}) {
         <Card.Title>{task.title}</Card.Title>
         <Card.Text>{task.description}</Card.Text>
         <Card.Text>
-          <strong>Reward:</strong> ₪{task.amount}
+          <strong>Reward:</strong> ₪{task.time}
         </Card.Text>
          
       </Card.Body>

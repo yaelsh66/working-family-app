@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { Form, Button, FloatingLabel, Container, Alert } from 'react-bootstrap';
 import { useAuth } from '../../context/AuthContext';
-import { addTaskToFirestore } from '../../api/firebaseAuth';
+import { addTaskToFirestore } from '../../api/firebaseTasks';
 
 function AddTaskForm() {
   const { user, loading } = useAuth();  // ✅ Include loading state
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [amount, setAmount] = useState('');
+  const [time, setAmount] = useState('');
   const [success, setSuccess] = useState(false);
 
   if (loading) {
@@ -33,7 +33,7 @@ function AddTaskForm() {
     const task = {
       title,
       description,
-      amount: user.role === 'parent' ? parseFloat(amount) || 0 : 0,
+      time: user.role === 'parent' ? parseFloat(time) || 0 : 0,
       familyId: user.familyId,
       createdBy: user.uid,
       
@@ -80,7 +80,7 @@ function AddTaskForm() {
             <Form.Control
               type="number"
               placeholder="Amount in shekels"
-              value={amount}
+              value={time}
               onChange={(e) => setAmount(e.target.value)}
               min="0"
               step="1"

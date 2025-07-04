@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { Container, Spinner, Alert } from 'react-bootstrap';
 import { useAuth } from '../context/AuthContext';
-import { getTasksForChild } from '../api/firebaseAuth';
+import { getTasksForChild } from '../api/firebaseTasks';
 import TaskItem from './TaskItem';
 
 function ChildTasksList() {

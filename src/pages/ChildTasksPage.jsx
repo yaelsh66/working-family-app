@@ -3,8 +3,8 @@ import React, { useEffect, useState } from 'react';
 import { Container, Row, Col, Spinner, Alert } from 'react-bootstrap';
 import { DragDropContext, Droppable } from '@hello-pangea/dnd';
 import { useAuth } from '../context/AuthContext';
-import { updateTaskAssignment } from '../api/firebaseTasks';
-import { getTasksForChild, getTasksForFamily } from '../api/firebaseAuth';
+import { updateTaskAssignment, getTasksForChild, getTasksForFamily  } from '../api/firebaseTasks';
+
 import TaskDraggable from '../components/TaskDraggable';
 import AmountBox from '../components/AmountBox';
 
@@ -14,7 +14,7 @@ function ChildTasksPage() {
   const [availableTasks, setAvailableTasks] = useState([]);
   const [error, setError] = useState('');
 
-  const assignedTotal = assignedTasks.reduce((sum, task) => sum + (task.amount || 0), 0);
+  const assignedTotal = assignedTasks.reduce((sum, task) => sum + (task.time || 0), 0);
 
 
 
