@@ -31,6 +31,7 @@ function ChildHomePage() {
             <AmountBox label="💰 Total Earned" amount={mockTotalAmount} />
           </Col>
         </Row>
+        
       </Container>
     </div>
   );

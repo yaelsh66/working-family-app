@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_KEY = 'AIzaSyDd2MQ0wQ6ZUgo9wzm35t_fIrcYAkl4tTA'; // 👈 replace with your real API key
+const API_KEY = ''; // 👈 replace with your real API key
 
 const BASE_URL = `https://identitytoolkit.googleapis.com/v1`;
 
