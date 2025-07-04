@@ -14,21 +14,34 @@ function ColorSchemesExample() {
   const isDisabled = !user;
   const handleLogout = () => {
     dispatch({ type: 'LOGOUT' });
-    navigate('/login');
+    navigate('/');
+  };
+
+  const getHomeLink = () => {
+    if (!user) return '/';
+    if (user.role === 'parent') return '/parent';
+    if (user.role === 'child') return '/child';
+    return '/';
   };
 
   return (
     <Navbar bg="dark" data-bs-theme="dark">
       <Container>
-        <Navbar.Brand href="/">Home</Navbar.Brand>
+        <Navbar.Brand href={ getHomeLink()}>Home</Navbar.Brand>
         <Nav className="me-auto">
-          <Nav.Link href="/parent">Parent</Nav.Link>
-          <Nav.Link href="/child">Child</Nav.Link>
-          <Nav.Link href="/newtask">New Task</Nav.Link>
-          <Nav.Link href="/tastsList">Tasks</Nav.Link>
-
-          <Nav.Link href='/signup'>Signup</Nav.Link>
-          {!user && <Nav.Link href="/login">Login</Nav.Link>}
+          {user && (
+            <>
+              <Nav.Link href="/newtask">New Task</Nav.Link>
+              <Nav.Link href="/tastsList">Tasks</Nav.Link>
+            </>
+          )}
+          {!user && (
+            <>
+              <Nav.Link href='/signup'>Signup</Nav.Link>
+              <Nav.Link href="/login">Login</Nav.Link>
+            </>
+          )}
+          
         </Nav>
         
         {user && (

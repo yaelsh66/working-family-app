@@ -120,6 +120,40 @@ export const getPendingCompletionsForChild = async (childId, idToken) => {
   }
 };
 
+export const withdrawTime = async (childId, minutes, token) => {
+  const userRes = await fetch(
+    `https://firestore.googleapis.com/v1/projects/family-c56e3/databases/(default)/documents/users/${childId}`,
+    {
+      headers: { Authorization: `Bearer ${token}` },
+    }
+  );
+
+  if (!userRes.ok) throw new Error('Failed to fetch user');
+
+  const userDoc = await userRes.json();
+  const currentTotal = userDoc.fields?.totalTime?.doubleValue || 0;
+
+  const newTotal = Math.max(0, currentTotal - minutes);
+
+  const updateRes = await fetch(
+    `https://firestore.googleapis.com/v1/projects/family-c56e3/databases/(default)/documents/users/${childId}`,
+    {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        fields: {
+          ...userDoc.fields,
+          totalTime: { doubleValue: newTotal },
+        },
+      }),
+    }
+  );
+
+  if (!updateRes.ok) throw new Error('Failed to update user');
+};
 
 
 export async function approveCompletion(completionId, childId, time, token) {

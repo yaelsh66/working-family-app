@@ -4,18 +4,21 @@ import { Container, Row, Col, Spinner, Alert } from 'react-bootstrap';
 import { DragDropContext, Droppable } from '@hello-pangea/dnd';
 import { useAuth } from '../context/AuthContext';
 import { updateTaskAssignment, getTasksForChild, getTasksForFamily  } from '../api/firebaseTasks';
-
+import { useNavigate } from 'react-router-dom';
 import TaskDraggable from '../components/TaskDraggable';
 import AmountBox from '../components/AmountBox';
+import { useTime } from '../context/TimeContext';
 
+
+  
 function ChildTasksPage() {
   const { user, loading } = useAuth();
   const [assignedTasks, setAssignedTasks] = useState([]);
   const [availableTasks, setAvailableTasks] = useState([]);
   const [error, setError] = useState('');
-
+  const navigate = useNavigate();
   const assignedTotal = assignedTasks.reduce((sum, task) => sum + (task.time || 0), 0);
-
+  const { addToPendingTime } = useTime();
 
 
   useEffect(() => {
@@ -91,85 +94,65 @@ function ChildTasksPage() {
   }
 };
 
-const handleComplete = async (task) => {
-  try {
-    // 1. Create the completion record payload
-    const completionRecord = {
-      fields: {
-        taskId: { stringValue: task.id },
-        title: { stringValue: task.title },
-        completedAt: { timestampValue: new Date().toISOString() },
-        time: {
-          doubleValue:
-            typeof task.time === 'number'
-              ? task.time
-              : parseFloat(task.time) || 0,
+
+
+  const handleComplete = async (task) => {
+    try {
+      // 1. Create the completion record payload
+      const completionRecord = {
+        fields: {
+          taskId: { stringValue: task.id },
+          title: { stringValue: task.title },
+          completedAt: { timestampValue: new Date().toISOString() },
+          time: {
+            doubleValue:
+              typeof task.time === 'number'
+                ? task.time
+                : parseFloat(task.time) || 0,
+          },
+          childId: { stringValue: user.uid },
+          familyId: { stringValue: user.familyId },
+          approved: { booleanValue: false },
         },
-        childId: { stringValue: user.uid },
-        familyId: { stringValue: user.familyId },
-        approved: { booleanValue: false }
-      },
-    };
+      };
 
-    // 2. Save the completion record
-    await fetch(
-      `https://firestore.googleapis.com/v1/projects/family-c56e3/databases/(default)/documents/completions`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${user.token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(completionRecord),
-      }
-    );
+      // 2. Save the completion record
+      await fetch(
+        `https://firestore.googleapis.com/v1/projects/family-c56e3/databases/(default)/documents/completions`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${user.token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(completionRecord),
+        }
+      );
 
-    // 3. Remove child from assignedTo array in the task document in Firestore
-    // This is your existing updateTaskAssignment function (or implement here)
-    const newAssignedTo = (task.assignedTo || []).filter(uid => uid !== user.uid);
-    await updateTaskAssignment(task.id, newAssignedTo, user.token);
+      // 3. Remove child from assignedTo array in the task document in Firestore
+      const newAssignedTo = (task.assignedTo || []).filter(
+        (uid) => uid !== user.uid
+      );
+      await updateTaskAssignment(task.id, newAssignedTo, user.token);
 
-    // 4. Update child's pendingTime in their user document
-    // Fetch current pendingTime (you may have it cached, else fetch from Firestore)
-    const userDocUrl = `https://firestore.googleapis.com/v1/projects/family-c56e3/databases/(default)/documents/users/${user.uid}`;
-    
-    // Get current user doc
-    const userRes = await fetch(userDocUrl, {
-      headers: { Authorization: `Bearer ${user.token}` },
-    });
-    const userData = await userRes.json();
-    const currentPendingTime = userData.fields?.pendingTime?.integerValue
-      ? parseInt(userData.fields.pendingTime.integerValue)
-      : 0;
+      // 4. Update pendingTime using TimeContext method (updates state + Firestore)
+      await addToPendingTime(task.time);
 
-    // Update pendingTime
-    const updatedPendingTime = currentPendingTime + (typeof task.time === 'number' ? task.time : parseFloat(task.time) || 0);
+      // 5. Remove task locally from assignedTasks state so UI updates
+      setAssignedTasks((prev) => prev.filter((t) => t.id !== task.id));
 
-    const updatePayload = {
-      fields: {
-        pendingTime: { integerValue: updatedPendingTime.toString() }
-      }
-    };
+      // 6. Notify user and navigate
+      alert(`✅ Task "${task.title}" marked as completed! Waiting for approval.`);
+      navigate('/child');
+    } catch (error) {
+      console.error('Failed to mark task as completed:', error);
+      alert('❌ Failed to complete task. Try again later.');
+    }
+  };
 
-    await fetch(userDocUrl + '?updateMask.fieldPaths=pendingTime', {
-      method: 'PATCH',
-      headers: {
-        Authorization: `Bearer ${user.token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(updatePayload),
-    });
+  
 
-    // 5. Remove task locally from assignedTasks state so UI updates
-    setAssignedTasks((prev) => prev.filter((t) => t.id !== task.id));
 
-    // 6. Notify user
-    alert(`✅ Task "${task.title}" marked as completed! Waiting for approval.`);
-  } catch (error) {
-    console.error('Failed to mark task as completed:', error);
-    alert('❌ Failed to complete task. Try again later.');
-  }
-};
 
 
 
