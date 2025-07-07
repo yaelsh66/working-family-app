@@ -7,7 +7,7 @@ import { updateTaskAssignment, getTasksForChild, getTasksForFamily  } from '../a
 import { useNavigate } from 'react-router-dom';
 import TaskDraggable from '../components/TaskDraggable';
 import AmountBox from '../components/AmountBox';
-import { useTime } from '../context/TimeContext';
+import { useScreenTime } from '../context/ScreenTimeContext';
 
 
   
@@ -18,7 +18,7 @@ function ChildTasksPage() {
   const [error, setError] = useState('');
   const navigate = useNavigate();
   const assignedTotal = assignedTasks.reduce((sum, task) => sum + (task.time || 0), 0);
-  const { addToPendingTime } = useTime();
+  const { addToPendingScreenTime} = useScreenTime();
 
 
   useEffect(() => {
@@ -43,7 +43,7 @@ function ChildTasksPage() {
     fetchData();
   }, [user]);
 
- const onDragEnd = async (result) => {
+  const onDragEnd = async (result) => {
   const { source, destination } = result;
   if (!destination) return;
 
@@ -92,9 +92,7 @@ function ChildTasksPage() {
   } catch (err) {
     console.error('Failed to update task:', err);
   }
-};
-
-
+  };
 
   const handleComplete = async (task) => {
     try {
@@ -136,7 +134,7 @@ function ChildTasksPage() {
       await updateTaskAssignment(task.id, newAssignedTo, user.token);
 
       // 4. Update pendingTime using TimeContext method (updates state + Firestore)
-      await addToPendingTime(task.time);
+      await addToPendingScreenTime(task.time);
 
       // 5. Remove task locally from assignedTasks state so UI updates
       setAssignedTasks((prev) => prev.filter((t) => t.id !== task.id));
@@ -149,13 +147,6 @@ function ChildTasksPage() {
       alert('❌ Failed to complete task. Try again later.');
     }
   };
-
-  
-
-
-
-
-
 
   if (loading) {
     return (

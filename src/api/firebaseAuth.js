@@ -30,6 +30,17 @@ export const signUpWithEmailAndPassword = async (email, password) => {
   return response.data;
 };
 
+export const refreshIdToken = async (refreshToken) => {
+  const url = `https://securetoken.googleapis.com/v1/token?key=${API_KEY}`;
+  const payload = {
+    grant_type: 'refresh_token',
+    refresh_token: refreshToken,
+  };
+
+  const response = await axios.post(url, payload);
+  return response.data; // includes id_token, refresh_token, etc.
+};
+
 // 🏠 Create Firestore document for the new user
 export const createUserDoc = async (uid, idToken, role, familyId) => {
   const url = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/users?documentId=${uid}`;

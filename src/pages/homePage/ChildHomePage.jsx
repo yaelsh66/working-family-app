@@ -5,13 +5,15 @@ import { Container, Button, Row, Col } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import AmountBox from '../../components/AmountBox';
-import { useTime } from '../../context/TimeContext'; 
+
 import { withdrawTime } from '../../api/firebaseTasks';
+import { useScreenTime } from '../../context/ScreenTimeContext';
 
 function ChildHomePage() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { totalTime, pendingTime} = useTime();
+  
+  const { totalScreenTime, pendingScreenTime} = useScreenTime();
 
   const handleGoToTasks = () => {
     navigate('/child/tasks');
@@ -26,7 +28,7 @@ function ChildHomePage() {
     return;
   }
 
-  if (minutes > totalTime) {
+  if (minutes > totalScreenTime) {
     alert('You cannot withdraw more than your total time.');
     return;
   }
@@ -34,7 +36,7 @@ function ChildHomePage() {
   try {
     await withdrawTime(user.uid, minutes, user.token);
     alert(`✅ You successfully withdrew ${minutes} minutes.`);
-    window.location.reload(); // or refresh the context if you prefer
+    window.location.reload(); 
   } catch (err) {
     console.error(err);
     alert('❌ Withdrawal failed.');
@@ -54,17 +56,17 @@ function ChildHomePage() {
 
         <Row className="justify-content-center mt-5">
           <Col md={6}>
-            <AmountBox label="💰 Total Time" time={totalTime} />
+            <AmountBox label="💰 Total Time" time={totalScreenTime} />
             <Button
               className="btn btn-danger mt-2"
               onClick={() => handleWithdraw()}
-              disabled={totalTime <= 0}
+              disabled={totalScreenTime <= 0}
             >
               Withdraw Time
             </Button>
           </Col>
           <Col md={2}>
-            <AmountBox label="💰 Pending Time" time={pendingTime} />
+            <AmountBox label="💰 Pending Time" time={pendingScreenTime} />
           </Col>
         </Row>
         

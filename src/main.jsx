@@ -6,14 +6,15 @@ import App from './App.jsx'
 import '../node_modules/bootstrap/dist/css/bootstrap.min.css';
 import { AuthProvider } from './context/AuthContext.jsx';
 import { TimeProvider } from './context/TimeContext.jsx';
+import { ScreenTimeProvider } from './context/ScreenTimeContext.jsx';
 
 createRoot(document.getElementById('root')).render(
   <BrowserRouter>
     <StrictMode>
       <AuthProvider>
-        <TimeProvider>
+        <ScreenTimeProvider>
           <App />
-        </TimeProvider>
+        </ScreenTimeProvider>
       </AuthProvider>
     </StrictMode>
   </BrowserRouter>,

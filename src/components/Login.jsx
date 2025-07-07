@@ -27,13 +27,18 @@ function Login() {
     const userData = await getUserData(data.localId, data.idToken);
     const role = userData.role?.stringValue || '';
     const familyId = userData.familyId?.stringValue || '';
+    const totalTime = userData.totalTime?.doubleValue || 0;
+    const pendingTime = userData.pendingTime?.doubleValue || 0;
 
     const user = {
       uid: data.localId,
       email: data.email,
       token: data.idToken,
+      refreshToken: data.refreshToken,
       role,
       familyId,
+      totalTime,
+      pendingTime,
     };
 
     localStorage.setItem('user', JSON.stringify(user));
