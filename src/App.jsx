@@ -9,14 +9,16 @@ import AddTaskForm from './pages/forms/AddTaskForm.jsx';
 import TasksPage from './pages/TasksPage.jsx';
 import ChildHomePage from './pages/homePage/ChildHomePage.jsx';
 import ChildTasksPage from './pages/ChildTasksPage.jsx';
-import BackgroundManager from './templates/BackgroundManager.jsx';
+import Sidebar from './templates/SideBar.jsx';
+import BackgroundWrapper from './templates/BackgroundWrapper.jsx';
 function App() {
   
 
   return (
     <div>
       <Navbar/>
-      <BackgroundManager/>
+      <Sidebar/>
+      <BackgroundWrapper>
       <Routes>
       
       <Route path='/' element={<PublicHomePage/>} />
@@ -29,6 +31,7 @@ function App() {
       <Route path='/tastsList' element={<TasksPage/>} />
       
       </Routes>
+      </BackgroundWrapper>
     </div>
   )
 }

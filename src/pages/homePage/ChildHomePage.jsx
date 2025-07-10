@@ -12,8 +12,9 @@ import { useScreenTime } from '../../context/ScreenTimeContext';
 function ChildHomePage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { totalScreenTime, pendingScreenTime, withdrawScreenTime } = useScreenTime();
+
   
-  const { totalScreenTime, pendingScreenTime} = useScreenTime();
 
   const handleGoToTasks = () => {
     navigate('/child/tasks');
@@ -34,9 +35,10 @@ function ChildHomePage() {
   }
 
   try {
-    await withdrawTime(user.uid, minutes, user.token);
+ 
+    await withdrawScreenTime(minutes); // ✅ update local state and database
     alert(`✅ You successfully withdrew ${minutes} minutes.`);
-    window.location.reload(); 
+
   } catch (err) {
     console.error(err);
     alert('❌ Withdrawal failed.');
@@ -45,7 +47,7 @@ function ChildHomePage() {
 
 
   return (
-    <div style={{ backgroundColor: '#f57c00', minHeight: '100vh', paddingTop: '50px' }}>
+    <div style={{ minHeight: '100vh', paddingTop: '50px' }}>
       <Container className="text-center">
         <h2 className="mb-4">Hi 👦 {user?.email}</h2>
 

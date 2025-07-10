@@ -13,8 +13,13 @@ export const signInWithEmailAndPassword = async (email, password) => {
     returnSecureToken: true,
   };
 
-  const response = await axios.post(url, payload);
-  return response.data; // → { idToken, localId, email, ... }
+  try {
+    const response = await axios.post(url, payload, { timeout: 10000 });
+    return response.data;
+  } catch (error) {
+    console.error("❌ Sign-in failed:", error.response?.data || error.message);
+    throw error;
+  }
 };
 
 // 🆕 Sign up new user
@@ -26,10 +31,16 @@ export const signUpWithEmailAndPassword = async (email, password) => {
     returnSecureToken: true,
   };
 
-  const response = await axios.post(url, payload);
-  return response.data;
+  try {
+    const response = await axios.post(url, payload, { timeout: 10000 });
+    return response.data;
+  } catch (error) {
+    console.error("❌ Sign-up failed:", error.response?.data || error.message);
+    throw error;
+  }
 };
 
+// 🔁 Refresh ID token
 export const refreshIdToken = async (refreshToken) => {
   const url = `https://securetoken.googleapis.com/v1/token?key=${API_KEY}`;
   const payload = {
@@ -37,8 +48,13 @@ export const refreshIdToken = async (refreshToken) => {
     refresh_token: refreshToken,
   };
 
-  const response = await axios.post(url, payload);
-  return response.data; // includes id_token, refresh_token, etc.
+  try {
+    const response = await axios.post(url, payload, { timeout: 10000 });
+    return response.data;
+  } catch (error) {
+    console.error("❌ Token refresh failed:", error.response?.data || error.message);
+    throw error;
+  }
 };
 
 // 🏠 Create Firestore document for the new user
@@ -47,18 +63,28 @@ export const createUserDoc = async (uid, idToken, role, familyId) => {
 
   const payload = {
     fields: {
-      role: { stringValue: role },                // 'parent' or 'child'
-      familyId: { stringValue: familyId },        // shared family ID
-      totalTime: { doubleValue: 0 },              // ⏱ approved time
-      pendingTime: { doubleValue: 0 }             // ⏱ submitted, not yet approved
+      role: { stringValue: role },
+      familyId: { stringValue: familyId },
+      backgroundImage: { stringValue: '' },
+      backgroundColor: { stringValue: '' },
+      totalTime: { doubleValue: 0 },
+      pendingTime: { doubleValue: 0 },
+      nickname: { stringValue: '' },
+      avatarUrl: { stringValue: '' },
     },
   };
 
-  const response = await axios.post(url, payload, {
-    headers: {
-      Authorization: `Bearer ${idToken}`,
-    },
-  });
+  try {
+    const response = await axios.post(url, payload, {
+      headers: {
+        Authorization: `Bearer ${idToken}`,
+      },
+      timeout: 10000,
+    });
 
-  return response.data;
+    return response.data;
+  } catch (error) {
+    console.error("❌ Creating user doc failed:", error.response?.data || error.message);
+    throw error;
+  }
 };

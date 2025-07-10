@@ -27,8 +27,12 @@ function Login() {
     const userData = await getUserData(data.localId, data.idToken);
     const role = userData.role?.stringValue || '';
     const familyId = userData.familyId?.stringValue || '';
+    const backgroundImage  = userData.backgroundImage?.stringValue || '';
+    const backgroundColor = userData.backgroundColor?.stringValue || '';
     const totalTime = userData.totalTime?.doubleValue || 0;
     const pendingTime = userData.pendingTime?.doubleValue || 0;
+    const nickname = userData.nickname?.stringValue || '';
+    const avatarUrl = userData.avatarUrl?.stringValue || '';
 
     const user = {
       uid: data.localId,
@@ -37,8 +41,12 @@ function Login() {
       refreshToken: data.refreshToken,
       role,
       familyId,
+      backgroundImage ,
+      backgroundColor,
       totalTime,
       pendingTime,
+      nickname,
+      avatarUrl,
     };
 
     localStorage.setItem('user', JSON.stringify(user));

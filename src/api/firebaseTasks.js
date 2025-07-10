@@ -226,35 +226,48 @@ export async function approveCompletion(completionId, childId, time, token) {
 
 
 
-
 export async function rejectCompletion(completionId, childId, time, token) {
-  // 1. Delete the completion document
-  await fetch(
-    `https://firestore.googleapis.com/v1/projects/family-c56e3/databases/(default)/documents/completions/${completionId}`,
-    {
-      method: 'DELETE',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    }
-  );
+  const baseURL = 'https://firestore.googleapis.com/v1/projects/family-c56e3/databases/(default)/documents';
 
-  // 2. Subtract time from pendingTime
-  await fetch(
-    `https://firestore.googleapis.com/v1/projects/family-c56e3/databases/(default)/documents/users/${childId}`,
-    {
-      method: 'PATCH',
+  try {
+    // 1. Delete the completion document
+    await axios.delete(`${baseURL}/completions/${completionId}`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({
+    });
+
+    // 2. Fetch current pendingTime
+    const userRes = await axios.get(`${baseURL}/users/${childId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    const fields = userRes.data.fields || {};
+    const currentPending = fields.pendingTime?.doubleValue || 0;
+
+    const newPending = Math.max(0, currentPending - time);
+
+    // 3. Update only the pendingTime field
+    await axios.patch(
+      `${baseURL}/users/${childId}?updateMask.fieldPaths=pendingTime`,
+      {
         fields: {
-          pendingTime: { doubleValue: -time },
+          pendingTime: { doubleValue: newPending },
         },
-      }),
-    }
-  );
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+  } catch (error) {
+    console.error('❌ rejectCompletion error:', error.response?.data || error.message);
+    throw error;
+  }
 }
+
 
 
 export const sendApprovalRequest = async (parentId, task, childId, token) => {

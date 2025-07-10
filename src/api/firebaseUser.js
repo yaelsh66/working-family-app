@@ -3,6 +3,7 @@ import axios from 'axios';
 const PROJECT_ID = 'family-c56e3';
 const BASE_URL = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
 
+
 // 📥 Get Firestore user document
 export const getUserData = async (uid, idToken) => {
   const url = `${BASE_URL}/users/${uid}`;
@@ -43,3 +44,28 @@ export const updateChildTime = async (childId, totalTime, pendingTime, idToken) 
     throw err;
   }
 };
+
+export const updateUserData = async (uid, updates, idToken) => {
+  const url = `${BASE_URL}/users/${uid}?${Object.keys(updates)
+    .map(key => `updateMask.fieldPaths=${key}`)
+    .join('&')}`;
+
+  const fields = {};
+  if (updates.backgroundColor !== undefined)
+    fields.backgroundColor = { stringValue: updates.backgroundColor };
+  if (updates.backgroundImage !== undefined)
+    fields.backgroundImage = { stringValue: updates.backgroundImage };
+  if (updates.nickname !== undefined)
+    fields.nickname = { stringValue: updates.nickname };
+  if (updates.avatarUrl !== undefined)
+    fields.avatarUrl = { stringValue: updates.avatarUrl };
+
+  const payload = { fields };
+
+  await axios.patch(url, payload, {
+    headers: {
+      Authorization: `Bearer ${idToken}`,
+    },
+  });
+};
+

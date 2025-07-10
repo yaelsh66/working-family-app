@@ -1,4 +1,4 @@
-import { createContext, useContext, useReducer, useEffect } from 'react';
+import { createContext, useContext, useReducer, useEffect, useRef } from 'react';
 import { useAuth } from './AuthContext';
 import { updateChildTime } from '../api/firebaseUser';
 
@@ -30,6 +30,11 @@ function screenTimeReducer(state, action) {
         totalScreenTime: state.totalScreenTime + state.pendingScreenTime,
         pendingScreenTime: 0,
       };
+    case 'WITHDRAW':
+      return {
+        ...state,
+        totalScreenTime: Math.max(0, state.totalScreenTime - action.payload),
+      };
     default:
       return state;
   }
@@ -39,44 +44,78 @@ export const ScreenTimeProvider = ({ children }) => {
   const { user } = useAuth();
   const [state, dispatch] = useReducer(screenTimeReducer, initialState);
 
-  // ✅ Load screen time once, from login data
-  useEffect(() => {
-    if (user && !state.loading) return; // Already initialized
-    if (user?.totalTime !== undefined && user?.pendingTime !== undefined) {
-      dispatch({
-        type: 'INIT',
-        payload: {
-          totalScreenTime: parseFloat(user.totalTime),
-          pendingScreenTime: parseFloat(user.pendingTime),
-        },
-      });
-    }
-  }, [user]);
+  const lastWrittenRef = useRef({
+    totalScreenTime: 0,
+    pendingScreenTime: 0,
+  });
 
-  // 🔁 Save to Firestore
-  const updateScreenTimeInFirestore = async (newTotal, newPending) => {
+  const debounceRef = useRef(null);
+
+  // 🔁 Debounced Firestore update
+  const updateScreenTimeInFirestore = (newTotal, newPending) => {
     if (!user?.uid || !user?.token) return;
 
-    try {
-      await updateChildTime(user.uid, newTotal, newPending, user.token);
-    } catch (err) {
-      console.error('❌ Failed to update Firestore:', err);
+    // Avoid unnecessary writes
+    if (
+      newTotal === lastWrittenRef.current.totalScreenTime &&
+      newPending === lastWrittenRef.current.pendingScreenTime
+    ) {
+      return;
     }
+
+    clearTimeout(debounceRef.current);
+
+    debounceRef.current = setTimeout(async () => {
+      try {
+        await updateChildTime(user.uid, newTotal, newPending, user.token);
+        lastWrittenRef.current = {
+          totalScreenTime: newTotal,
+          pendingScreenTime: newPending,
+        };
+      } catch (err) {
+        console.error('❌ Failed to update Firestore:', err);
+      }
+    }, 500); // ⏳ Wait 500ms before firing
   };
 
-  // Add to pending screen time (child completes a task)
+  const withdrawScreenTime = async (minutes) => {
+    const newTotal = Math.max(0, state.totalScreenTime - minutes);
+    dispatch({ type: 'WITHDRAW', payload: minutes });
+    updateScreenTimeInFirestore(newTotal, state.pendingScreenTime);
+  };
+
   const addToPendingScreenTime = async (minutes) => {
     const newPending = state.pendingScreenTime + minutes;
     dispatch({ type: 'ADD_PENDING', payload: minutes });
-    await updateScreenTimeInFirestore(state.totalScreenTime, newPending);
+    updateScreenTimeInFirestore(state.totalScreenTime, newPending);
   };
 
-  // Approve screen time (parent approves tasks)
   const approvePendingScreenTime = async () => {
     const newTotal = state.totalScreenTime + state.pendingScreenTime;
     dispatch({ type: 'APPROVE_PENDING' });
-    await updateScreenTimeInFirestore(newTotal, 0);
+    updateScreenTimeInFirestore(newTotal, 0);
   };
+
+  // 🧠 Load from user data only once
+  useEffect(() => {
+    if (user && state.loading) {
+      if (user?.totalTime !== undefined && user?.pendingTime !== undefined) {
+        const total = parseFloat(user.totalTime);
+        const pending = parseFloat(user.pendingTime);
+        dispatch({
+          type: 'INIT',
+          payload: {
+            totalScreenTime: total,
+            pendingScreenTime: pending,
+          },
+        });
+        lastWrittenRef.current = {
+          totalScreenTime: total,
+          pendingScreenTime: pending,
+        };
+      }
+    }
+  }, [user, state.loading]);
 
   return (
     <ScreenTimeContext.Provider
@@ -86,6 +125,7 @@ export const ScreenTimeProvider = ({ children }) => {
         loading: state.loading,
         addToPendingScreenTime,
         approvePendingScreenTime,
+        withdrawScreenTime,
       }}
     >
       {children}
