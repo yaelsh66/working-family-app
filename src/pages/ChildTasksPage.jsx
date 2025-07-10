@@ -1,53 +1,31 @@
-// src/pages/ChildPage.jsx
-import React, { useEffect, useState } from 'react';
+// src/pages/ChildTasksPage.jsx
+import React, { useContext, useState } from 'react';
 import { Container, Row, Col, Spinner, Alert } from 'react-bootstrap';
 import { DragDropContext, Droppable } from '@hello-pangea/dnd';
 import { useAuth } from '../context/AuthContext';
-import { updateTaskAssignment, getTasksForChild, getTasksForFamily  } from '../api/firebaseTasks';
-import { useNavigate } from 'react-router-dom';
 import TaskDraggable from '../components/TaskDraggable';
 import AmountBox from '../components/AmountBox';
 import { useScreenTime } from '../context/ScreenTimeContext';
+import { useTaskContext } from '../context/TaskContext';
 
 
-  
 function ChildTasksPage() {
   const { user, loading } = useAuth();
-  const [assignedTasks, setAssignedTasks] = useState([]);
-  const [availableTasks, setAvailableTasks] = useState([]);
+  const {
+    assignedTasks,
+    availableTasks,
+    reassignTask,
+    reassignTaskOptimistic,
+  } = useTaskContext();
+  const { addToPendingScreenTime } = useScreenTime();
   const [error, setError] = useState('');
-  const navigate = useNavigate();
+
   const assignedTotal = assignedTasks.reduce((sum, task) => sum + (task.time || 0), 0);
-  const { addToPendingScreenTime} = useScreenTime();
-
-
-  useEffect(() => {
-    if (!user) return;
-
-    const fetchData = async () => {
-      try {
-        const allTasks = await getTasksForFamily(user.familyId, user.token);
-        const myTasks = await getTasksForChild(user.uid, user.familyId, user.token);
-
-        const assignedIds = new Set(myTasks.map(t => t.id));
-        const unassigned = allTasks.filter(t => !assignedIds.has(t.id));
-
-        setAssignedTasks(myTasks);
-        setAvailableTasks(unassigned);
-      } catch (err) {
-        console.error('Failed to load tasks:', err);
-        setError('Could not load tasks.');
-      }
-    };
-
-    fetchData();
-  }, [user]);
 
   const onDragEnd = async (result) => {
   const { source, destination } = result;
   if (!destination) return;
 
-  // 🛑 Dropped in the same spot
   if (
     source.droppableId === destination.droppableId &&
     source.index === destination.index
@@ -55,11 +33,9 @@ function ChildTasksPage() {
     return;
   }
 
-  // Clone both lists so we don't mutate state directly
   const assignedClone = [...assignedTasks];
   const availableClone = [...availableTasks];
 
-  // Determine which lists we're moving from/to
   const sourceList =
     source.droppableId === 'assigned' ? assignedClone : availableClone;
   const destList =
@@ -68,45 +44,31 @@ function ChildTasksPage() {
   const [movedTask] = sourceList.splice(source.index, 1);
   destList.splice(destination.index, 0, movedTask);
 
-  // Update state
-  if (source.droppableId === 'assigned') {
-    setAssignedTasks(sourceList);
-  } else {
-    setAvailableTasks(sourceList);
-  }
-
-  if (destination.droppableId === 'assigned') {
-    setAssignedTasks(destList);
-  } else {
-    setAvailableTasks(destList);
-  }
-
-  // Firestore update
   const newAssignedTo =
     destination.droppableId === 'assigned'
       ? [...(movedTask.assignedTo || []), user.uid]
       : (movedTask.assignedTo || []).filter((uid) => uid !== user.uid);
 
   try {
-    await updateTaskAssignment(movedTask.id, newAssignedTo, user.token);
+    await reassignTaskOptimistic(movedTask.id, newAssignedTo, {
+      newAssigned: assignedClone,
+      newAvailable: availableClone,
+    });
   } catch (err) {
-    console.error('Failed to update task:', err);
+    console.error('Failed to update assignment:', err);
+    setError('Failed to update task assignment.');
   }
-  };
+};
 
   const handleComplete = async (task) => {
     try {
-      // 1. Create the completion record payload
       const completionRecord = {
         fields: {
           taskId: { stringValue: task.id },
           title: { stringValue: task.title },
           completedAt: { timestampValue: new Date().toISOString() },
           time: {
-            doubleValue:
-              typeof task.time === 'number'
-                ? task.time
-                : parseFloat(task.time) || 0,
+            doubleValue: typeof task.time === 'number' ? task.time : parseFloat(task.time) || 0,
           },
           childId: { stringValue: user.uid },
           familyId: { stringValue: user.familyId },
@@ -114,7 +76,6 @@ function ChildTasksPage() {
         },
       };
 
-      // 2. Save the completion record
       await fetch(
         `https://firestore.googleapis.com/v1/projects/family-c56e3/databases/(default)/documents/completions`,
         {
@@ -127,21 +88,11 @@ function ChildTasksPage() {
         }
       );
 
-      // 3. Remove child from assignedTo array in the task document in Firestore
-      const newAssignedTo = (task.assignedTo || []).filter(
-        (uid) => uid !== user.uid
-      );
-      await updateTaskAssignment(task.id, newAssignedTo, user.token);
-
-      // 4. Update pendingTime using TimeContext method (updates state + Firestore)
+      const newAssignedTo = (task.assignedTo || []).filter((uid) => uid !== user.uid);
+      await reassignTask(task.id, newAssignedTo);
       await addToPendingScreenTime(task.time);
 
-      // 5. Remove task locally from assignedTasks state so UI updates
-      setAssignedTasks((prev) => prev.filter((t) => t.id !== task.id));
-
-      // 6. Notify user and navigate
       alert(`✅ Task "${task.title}" marked as completed! Waiting for approval.`);
-      navigate('/child');
     } catch (error) {
       console.error('Failed to mark task as completed:', error);
       alert('❌ Failed to complete task. Try again later.');
@@ -177,7 +128,13 @@ function ChildTasksPage() {
               {(provided) => (
                 <div ref={provided.innerRef} {...provided.droppableProps}>
                   {assignedTasks.map((task, idx) => (
-                    <TaskDraggable key={task.id} task={task} index={idx} isAssigned={true} onComplete={handleComplete} />
+                    <TaskDraggable
+                      key={task.id}
+                      task={task}
+                      index={idx}
+                      isAssigned={true}
+                      onComplete={handleComplete}
+                    />
                   ))}
                   {provided.placeholder}
                 </div>
@@ -191,7 +148,12 @@ function ChildTasksPage() {
               {(provided) => (
                 <div ref={provided.innerRef} {...provided.droppableProps}>
                   {availableTasks.map((task, idx) => (
-                    <TaskDraggable key={task.id} task={task} index={idx} isAssigned={false} />
+                    <TaskDraggable
+                      key={task.id}
+                      task={task}
+                      index={idx}
+                      isAssigned={false}
+                    />
                   ))}
                   {provided.placeholder}
                 </div>
@@ -200,15 +162,14 @@ function ChildTasksPage() {
           </Col>
         </Row>
       </DragDropContext>
-      
 
-<AmountBox
-  label="Future Potential"
-  time={assignedTotal}
-  variant="info"
-  size="large"
-  icon="💡"
-/>
+      <AmountBox
+        label="Future Potential"
+        time={assignedTotal}
+        variant="info"
+        size="large"
+        icon="💡"
+      />
     </Container>
   );
 }

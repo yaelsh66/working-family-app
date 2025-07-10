@@ -1,11 +1,19 @@
+// src/api/firebaseTasks.js
 import axios from 'axios';
 
 const PROJECT_ID = 'family-c56e3';
 const BASE_URL = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
+const QUERY_URL = `${BASE_URL}:runQuery`;
 
-// Get all users of a family (children)
-export const getUsersByFamily = async (familyId, idToken) => {
-  const url = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents:runQuery`;
+const axiosInstance = axios.create({
+  baseURL: BASE_URL,
+  timeout: 10000,
+});
+
+const authHeader = (token) => ({ Authorization: `Bearer ${token}` });
+
+export const getUsersByFamily = async (familyId, token) => {
+  const url = `${BASE_URL}:runQuery`;
 
   const payload = {
     structuredQuery: {
@@ -35,26 +43,21 @@ export const getUsersByFamily = async (familyId, idToken) => {
   };
 
   try {
-    const response = await axios.post(url, payload, {
-      headers: { Authorization: `Bearer ${idToken}` },
+    const response = await axiosInstance.post(url, payload, {
+      headers: authHeader(token),
     });
 
     return response.data
       .filter((res) => res.document)
       .map((res) => {
-        const fields = res.document.fields;
+        const f = res.document.fields;
         return {
           uid: res.document.name.split('/').pop(),
-          email: fields.email?.stringValue || '',
-          role: fields.role?.stringValue || '',
-          familyId: fields.familyId?.stringValue || '',
-          totalTime: fields.totalTime?.doubleValue || 0,
-          pendingTime:
-          fields.pendingTime?.doubleValue !== undefined
-            ? fields.pendingTime.doubleValue
-            : fields.pendingTime?.integerValue !== undefined
-            ? parseInt(fields.pendingTime.integerValue, 10)
-            : 0,
+          email: f.email?.stringValue || '',
+          role: f.role?.stringValue || '',
+          familyId: f.familyId?.stringValue || '',
+          totalTime: parseFloat(f.totalTime?.doubleValue || f.totalTime?.integerValue || '0'),
+          pendingTime: parseFloat(f.pendingTime?.doubleValue || f.pendingTime?.integerValue || '0'),
         };
       });
   } catch (error) {
@@ -63,10 +66,268 @@ export const getUsersByFamily = async (familyId, idToken) => {
   }
 };
 
-// Get pending completions for a child (approved == false)
-export const getPendingCompletionsForChild = async (childId, idToken) => {
-  const url = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents:runQuery`;
+export const withdrawTime = async (childId, minutes, token) => {
+  try {
+    // 1. Fetch current user document
+    const userRes = await axiosInstance.get(`/users/${childId}`, {
+      headers: authHeader(token),
+    });
 
+    const fields = userRes.data.fields || {};
+    const currentTotal = parseFloat(fields.totalTime?.doubleValue || fields.totalTime?.integerValue || '0');
+
+    // 2. Calculate new total time (no negative)
+    const newTotal = Math.max(0, currentTotal - minutes);
+
+    // 3. PATCH update only the totalTime field
+    const patchPayload = {
+      fields: {
+        totalTime: { doubleValue: newTotal },
+      },
+    };
+
+    const updateRes = await axiosInstance.patch(`/users/${childId}?updateMask.fieldPaths=totalTime`, patchPayload, {
+      headers: authHeader(token),
+    });
+
+    return updateRes.data;
+  } catch (error) {
+    console.error('Failed to withdraw time:', error);
+    throw error;
+  }
+};
+
+
+// 🔄 Get all tasks for a family
+export const getTasksForFamily = async (familyId, token) => {
+  const payload = {
+    structuredQuery: {
+      from: [{ collectionId: 'tasks' }],
+      where: {
+        fieldFilter: {
+          field: { fieldPath: 'familyId' },
+          op: 'EQUAL',
+          value: { stringValue: familyId },
+        },
+      },
+    },
+  };
+
+  const res = await axios.post(QUERY_URL, payload, {
+    headers: authHeader(token),
+  });
+
+  return res.data
+    .filter((d) => d.document)
+    .map((d) => {
+      const f = d.document.fields;
+      return {
+        id: d.document.name.split('/').pop(),
+        title: f.title?.stringValue,
+        description: f.description?.stringValue,
+        time: parseFloat(f.time?.doubleValue || f.time?.integerValue || '0'),
+        createdBy: f.createdBy?.stringValue,
+        familyId: f.familyId?.stringValue,
+        assignedTo: f.assignedTo?.arrayValue?.values?.map((v) => v.stringValue) || [],
+        createdAt: f.createdAt?.timestampValue,
+      };
+    });
+};
+
+// 📥 Get tasks for a child
+export const getTasksForChild = async (uid, familyId, token) => {
+  const payload = {
+    structuredQuery: {
+      from: [{ collectionId: 'tasks' }],
+      where: {
+        compositeFilter: {
+          op: 'AND',
+          filters: [
+            {
+              fieldFilter: {
+                field: { fieldPath: 'assignedTo' },
+                op: 'ARRAY_CONTAINS',
+                value: { stringValue: uid },
+              },
+            },
+            {
+              fieldFilter: {
+                field: { fieldPath: 'familyId' },
+                op: 'EQUAL',
+                value: { stringValue: familyId },
+              },
+            },
+          ],
+        },
+      },
+    },
+  };
+
+  const res = await axios.post(QUERY_URL, payload, {
+    headers: authHeader(token),
+  });
+
+  return res.data
+    .filter((d) => d.document)
+    .map((d) => {
+      const f = d.document.fields;
+      return {
+        id: d.document.name.split('/').pop(),
+        title: f.title?.stringValue,
+        description: f.description?.stringValue,
+        time: parseFloat(f.time?.doubleValue || f.time?.integerValue || '0'),
+        createdBy: f.createdBy?.stringValue,
+        familyId: f.familyId?.stringValue,
+        assignedTo: f.assignedTo?.arrayValue?.values?.map((v) => v.stringValue) || [],
+        createdAt: f.createdAt?.timestampValue,
+      };
+    });
+};
+
+// ➕ Add new task task.title, description, time (minutes), assignedTo[]
+export const addTaskToFirestore = async (task, token) => {
+  const payload = {
+    fields: {
+      title: { stringValue: task.title },
+      description: { stringValue: task.description },
+      time: Number.isInteger(task.time)
+        ? { integerValue: task.time }
+        : { doubleValue: task.time },
+      createdBy: { stringValue: task.createdBy },
+      familyId: { stringValue: task.familyId },
+      assignedTo: {
+        arrayValue: {
+          values: (task.assignedTo || []).map((uid) => ({ stringValue: uid })),
+        },
+      },
+      createdAt: { timestampValue: new Date().toISOString() },
+    },
+  };
+
+  const res = await axiosInstance.post(`/tasks`, payload, {
+    headers: authHeader(token),
+  });
+  return res.data;
+};
+
+
+// 🔁 Update task assignments
+export const updateTaskAssignment = async (taskId, newAssignedTo, token) => {
+  const payload = {
+    fields: {
+      assignedTo: {
+        arrayValue: {
+          values: newAssignedTo.map((uid) => ({ stringValue: uid })),
+        },
+      },
+    },
+  };
+
+  const res = await axiosInstance.patch(`/tasks/${taskId}?updateMask.fieldPaths=assignedTo`, payload, {
+    headers: authHeader(token),
+  });
+
+  return res.data;
+};
+
+// ✅ Send approval request and increment pendingTime
+export const sendApprovalRequest = async (parentId, task, childId, token) => {
+  const approvalDocId = `${childId}_${task.id}`;
+  const approvalPayload = {
+    fields: {
+      taskId: { stringValue: task.id },
+      title: { stringValue: task.title },
+      completedAt: { timestampValue: new Date().toISOString() },
+      time: { doubleValue: task.time },
+      childId: { stringValue: childId },
+      familyId: { stringValue: task.familyId || '' },
+      approved: { booleanValue: false },
+    },
+  };
+
+  // ✅ Write to completions collection
+  const approvalRes = await axiosInstance.post(
+    `/completions?documentId=${approvalDocId}`,
+    approvalPayload,
+    {
+      headers: authHeader(token),
+    }
+  );
+
+  // ⏱️ Update child's pendingTime (keep as-is)
+  const userRes = await axiosInstance.get(`/users/${childId}`, {
+    headers: authHeader(token),
+  });
+
+  const currentPending = parseFloat(
+    userRes.data.fields?.pendingTime?.doubleValue || 0
+  );
+
+  await axiosInstance.patch(
+    `/users/${childId}?updateMask.fieldPaths=pendingTime`,
+    {
+      fields: {
+        pendingTime: { doubleValue: currentPending + task.time },
+      },
+    },
+    {
+      headers: authHeader(token),
+    }
+  );
+
+  return approvalRes.data;
+};
+
+export const getPendingCompletionsForFamily = async (familyId, token) => {
+  const payload = {
+    structuredQuery: {
+      from: [{ collectionId: 'completions' }],
+      where: {
+        compositeFilter: {
+          op: 'AND',
+          filters: [
+            {
+              fieldFilter: {
+                field: { fieldPath: 'familyId' },
+                op: 'EQUAL',
+                value: { stringValue: familyId },
+              },
+            },
+            {
+              fieldFilter: {
+                field: { fieldPath: 'approved' },
+                op: 'EQUAL',
+                value: { booleanValue: false },
+              },
+            },
+          ],
+        },
+      },
+    },
+  };
+
+  const res = await axios.post(QUERY_URL, payload, {
+    headers: authHeader(token),
+  });
+
+  return res.data
+    .filter((d) => d.document)
+    .map((d) => {
+      const f = d.document.fields;
+      return {
+        id: d.document.name.split('/').pop(),
+        taskId: f.taskId?.stringValue || '',
+        title: f.title?.stringValue || '',
+        time: parseFloat(f.time?.doubleValue || 0),
+        completedAt: f.completedAt?.timestampValue || '',
+        childId: f.childId?.stringValue || '',
+        familyId: f.familyId?.stringValue || '',
+        approved: f.approved?.booleanValue || false,
+      };
+    });
+};
+
+export const getPendingCompletionsForChild = async (childId, token) => {
   const payload = {
     structuredQuery: {
       from: [{ collectionId: 'completions' }],
@@ -94,362 +355,95 @@ export const getPendingCompletionsForChild = async (childId, idToken) => {
     },
   };
 
-  try {
-    const response = await axios.post(url, payload, {
-      headers: { Authorization: `Bearer ${idToken}` },
+  const res = await axios.post(QUERY_URL, payload, {
+    headers: authHeader(token),
+  });
+
+  return res.data
+    .filter((d) => d.document)
+    .map((d) => {
+      const f = d.document.fields;
+      return {
+        id: d.document.name.split('/').pop(),
+        taskId: f.taskId?.stringValue || '',
+        title: f.title?.stringValue || '',
+        time: parseFloat(f.time?.doubleValue || 0),
+        completedAt: f.completedAt?.timestampValue || '',
+        childId: f.childId?.stringValue || '',
+        familyId: f.familyId?.stringValue || '',
+        approved: f.approved?.booleanValue || false,
+      };
     });
-
-    return response.data
-      .filter((res) => res.document)
-      .map((res) => {
-        const f = res.document.fields;
-        return {
-          id: res.document.name.split('/').pop(),
-          taskId: f.taskId?.stringValue || '',
-          title: f.title?.stringValue || '',
-          time: f.time?.doubleValue || 0,
-          completedAt: f.completedAt?.timestampValue || '',
-          childId: f.childId?.stringValue || '',
-          familyId: f.familyId?.stringValue || '',
-          approved: f.approved?.booleanValue || false,
-        };
-      });
-  } catch (error) {
-    console.error('Failed to fetch pending completions:', error);
-    throw error;
-  }
 };
 
-export const withdrawTime = async (childId, minutes, token) => {
-  const userRes = await fetch(
-    `https://firestore.googleapis.com/v1/projects/family-c56e3/databases/(default)/documents/users/${childId}`,
+export const approveCompletion = async (completionId, childId, time, token) => {
+  // Step 1: Mark completion as approved
+  await axiosInstance.patch(
+    `/completions/${completionId}?updateMask.fieldPaths=approved`,
     {
-      headers: { Authorization: `Bearer ${token}` },
-    }
-  );
-
-  if (!userRes.ok) throw new Error('Failed to fetch user');
-
-  const userDoc = await userRes.json();
-  const currentTotal = userDoc.fields?.totalTime?.doubleValue || 0;
-
-  const newTotal = Math.max(0, currentTotal - minutes);
-
-  const updateRes = await fetch(
-    `https://firestore.googleapis.com/v1/projects/family-c56e3/databases/(default)/documents/users/${childId}`,
-    {
-      method: 'PATCH',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
+      fields: {
+        approved: { booleanValue: true },
       },
-      body: JSON.stringify({
-        fields: {
-          ...userDoc.fields,
-          totalTime: { doubleValue: newTotal },
-        },
-      }),
-    }
+    },
+    { headers: authHeader(token) }
   );
 
-  if (!updateRes.ok) throw new Error('Failed to update user');
-};
+  // Step 2: Get current totalTime
+  const userRes = await axiosInstance.get(`/users/${childId}`, {
+    headers: authHeader(token),
+  });
 
+  const fields = userRes.data.fields || {};
+  const currentTotal = parseFloat(fields.totalTime?.doubleValue || 0);
 
-export async function approveCompletion(completionId, childId, time, token) {
-  try {
-    // 1. Mark the completion as approved
-    const approveResponse = await fetch(
-      `https://firestore.googleapis.com/v1/projects/family-c56e3/databases/(default)/documents/completions/${completionId}?updateMask.fieldPaths=approved`,
-      {
-        method: 'PATCH',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ fields: { approved: { booleanValue: true } } }),
-      }
-    );
+  // Step 3: Recalculate pendingTime from all other unapproved completions
+  const pendingCompletions = await getPendingCompletionsForChild(childId, token);
+  const recalculatedPending = pendingCompletions.reduce((sum, c) => sum + c.time, 0);
 
-    if (!approveResponse.ok) {
-      throw new Error(`Failed to approve completion: ${approveResponse.statusText}`);
-    }
-
-    // 2. Fetch full current user document
-    const userRes = await fetch(
-      `https://firestore.googleapis.com/v1/projects/family-c56e3/databases/(default)/documents/users/${childId}`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      }
-    );
-
-    if (!userRes.ok) throw new Error('Failed to fetch child document');
-
-    const userDoc = await userRes.json();
-    const fields = userDoc.fields || {};
-
-    const currentTotal = fields.totalTime?.doubleValue || 0;
-
-    // 3. Recalculate pendingTime by summing still pending completions
-    const pendingCompletions = await getPendingCompletionsForChild(childId, token);
-    const recalculatedPending = pendingCompletions.reduce((sum, c) => sum + c.time, 0);
-
-    // 4. Update user document with new totalTime and recalculated pendingTime
-    const updatedFields = {
-      ...fields,
+  // Step 4: Update user's total and pending time
+  await axiosInstance.patch(
+  `/users/${childId}?updateMask.fieldPaths=totalTime&updateMask.fieldPaths=pendingTime`,
+  {
+    fields: {
       totalTime: { doubleValue: currentTotal + time },
       pendingTime: { doubleValue: recalculatedPending },
-    };
-
-    const updateRes = await fetch(
-      `https://firestore.googleapis.com/v1/projects/family-c56e3/databases/(default)/documents/users/${childId}`,
-      {
-        method: 'PATCH',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ fields: updatedFields }),
-      }
-    );
-
-    if (!updateRes.ok) {
-      throw new Error(`Failed to update user: ${updateRes.statusText}`);
-    }
-
-    return true;
-  } catch (error) {
-    console.error('approveCompletion error:', error);
-    throw error;
-  }
-}
-
-
-
-export async function rejectCompletion(completionId, childId, time, token) {
-  const baseURL = 'https://firestore.googleapis.com/v1/projects/family-c56e3/databases/(default)/documents';
-
-  try {
-    // 1. Delete the completion document
-    await axios.delete(`${baseURL}/completions/${completionId}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    // 2. Fetch current pendingTime
-    const userRes = await axios.get(`${baseURL}/users/${childId}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    const fields = userRes.data.fields || {};
-    const currentPending = fields.pendingTime?.doubleValue || 0;
-
-    const newPending = Math.max(0, currentPending - time);
-
-    // 3. Update only the pendingTime field
-    await axios.patch(
-      `${baseURL}/users/${childId}?updateMask.fieldPaths=pendingTime`,
-      {
-        fields: {
-          pendingTime: { doubleValue: newPending },
-        },
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
-  } catch (error) {
-    console.error('❌ rejectCompletion error:', error.response?.data || error.message);
-    throw error;
-  }
-}
-
-
-
-export const sendApprovalRequest = async (parentId, task, childId, token) => {
-  const url = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/users/${parentId}/approvals?documentId=${childId}_${task.id}`;
-
-  const payload = {
-    fields: {
-      taskId: { stringValue: task.id },
-      childId: { stringValue: childId },
-      time: {
-        doubleValue: task.time || 0,
-      },
-      title: { stringValue: task.title || '' },
-      completedAt: { timestampValue: new Date().toISOString() },
     },
-  };
+  },
+  {
+    headers: authHeader(token),
+  }
+);
 
-  const res = await axios.post(url, payload, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-
-  // ✅ Also increment the child's pendingTime
-  const userUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/users/${childId}`;
-  const userRes = await axios.get(userUrl, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-
-  const currentPending = userRes.data.fields?.pendingTime?.doubleValue || 0;
-  const newPending = parseFloat(currentPending) + (task.time || 0);
-
-  await axios.patch(userUrl, {
-    fields: {
-      pendingTime: { doubleValue: newPending },
-    },
-  }, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-
-  return res.data;
 };
 
+export const rejectCompletion = async (completionId, childId, time, token) => {
+  // Step 1: Delete the completion
+  await axiosInstance.delete(`/completions/${completionId}`, {
+    headers: authHeader(token),
+  });
 
+  // Step 2: Get current pending time
+  const userRes = await axiosInstance.get(`/users/${childId}`, {
+    headers: authHeader(token),
+  });
 
-// ➕ Add a new task (template)
-export const addTaskToFirestore = async (task, idToken) => {
-  const url = `${BASE_URL}/tasks`;
+  const currentPending = parseFloat(
+    userRes.data.fields?.pendingTime?.doubleValue || 0
+  );
+  const newPending = Math.max(0, currentPending - time);
 
-  const payload = {
-    fields: {
-      title:       { stringValue: task.title },
-      description: { stringValue: task.description },
-      time:        Number.isInteger(task.time)
-                      ? { integerValue: task.time }
-                      : { doubleValue:  task.time },  // <-- time replaces amount
-      familyId:    { stringValue: task.familyId },
-      createdBy:   { stringValue: task.createdBy },
-      assignedTo: {
-        arrayValue: {
-          values: (task.assignedTo || []).map(uid => ({ stringValue: uid }))
-        }
+  // Step 3: Update only pendingTime
+  await axiosInstance.patch(
+    `/users/${childId}?updateMask.fieldPaths=pendingTime`,
+    {
+      fields: {
+        pendingTime: { doubleValue: newPending },
       },
-      createdAt:   { timestampValue: new Date().toISOString() }
+    },
+    {
+      headers: authHeader(token),
     }
-  };
-
-  const res = await axios.post(url, payload, {
-    headers: { Authorization: `Bearer ${idToken}` }
-  });
-  return res.data;
+  );
 };
 
-// 🔄 Update task assignment list (assignedTo array)
-export const updateTaskAssignment = async (taskId, newAssignedTo, idToken) => {
-  const url = `${BASE_URL}/tasks/${taskId}?updateMask.fieldPaths=assignedTo`;
 
-  const payload = {
-    fields: {
-      assignedTo: {
-        arrayValue: {
-          values: newAssignedTo.map(uid => ({ stringValue: uid }))
-        }
-      }
-    }
-  };
-
-  const response = await axios.patch(url, payload, {
-    headers: { Authorization: `Bearer ${idToken}` }
-  });
-
-  return response.data;
-};
-
-// 📥 Get all tasks assigned to a specific child (not completed)
-export const getTasksForChild = async (childId, familyId, idToken) => {
-  const url = `${BASE_URL}:runQuery`;
-
-  const payload = {
-    structuredQuery: {
-      from: [{ collectionId: 'tasks' }],
-      where: {
-        compositeFilter: {
-          op: 'AND',
-          filters: [
-            {
-              fieldFilter: {
-                field: { fieldPath: 'assignedTo' },
-                op: 'ARRAY_CONTAINS',
-                value: { stringValue: childId },
-              }
-            },
-            {
-              fieldFilter: {
-                field: { fieldPath: 'familyId' },
-                op: 'EQUAL',
-                value: { stringValue: familyId },
-              }
-            }
-          ]
-        }
-      }
-    }
-  };
-
-  const response = await axios.post(url, payload, {
-    headers: { Authorization: `Bearer ${idToken}` }
-  });
-
-  // Map Firestore response to simple task objects
-  return response.data
-    .filter(res => res.document)
-    .map(res => {
-      const fields = res.document.fields;
-      return {
-        id: res.document.name.split('/').pop(),
-        title: fields.title?.stringValue || '',
-        description: fields.description?.stringValue || '',
-        time: fields.time?.doubleValue !== undefined
-          ? parseFloat(fields.time.doubleValue)
-          : parseFloat(fields.time?.integerValue || '0'),
-        familyId: fields.familyId?.stringValue,
-        createdBy: fields.createdBy?.stringValue,
-        assignedTo: fields.assignedTo?.arrayValue?.values?.map(v => v.stringValue) || [],
-        createdAt: fields.createdAt?.timestampValue || '',
-      };
-    });
-};
-
-// 📥 Get all tasks for a family (parent/admin view)
-export const getTasksForFamily = async (familyId, idToken) => {
-  const url = `${BASE_URL}:runQuery`;
-
-  const payload = {
-    structuredQuery: {
-      from: [{ collectionId: 'tasks' }],
-      where: {
-        fieldFilter: {
-          field: { fieldPath: 'familyId' },
-          op: 'EQUAL',
-          value: { stringValue: familyId },
-        }
-      }
-    }
-  };
-
-  const response = await axios.post(url, payload, {
-    headers: { Authorization: `Bearer ${idToken}` }
-  });
-
-  return response.data
-    .filter(res => res.document)
-    .map(res => {
-      const fields = res.document.fields;
-      return {
-        id: res.document.name.split('/').pop(),
-        title: fields.title?.stringValue || '',
-        description: fields.description?.stringValue || '',
-        time: fields.time?.doubleValue !== undefined
-          ? parseFloat(fields.time.doubleValue)
-          : parseFloat(fields.time?.integerValue || '0'),
-        familyId: fields.familyId?.stringValue,
-        createdBy: fields.createdBy?.stringValue,
-        createdAt: fields.createdAt?.timestampValue || '',
-      };
-    });
-};

@@ -1,65 +1,63 @@
 import React, { useEffect, useState } from 'react';
 import { Container, Row, Col, Spinner, Alert, Card, Button } from 'react-bootstrap';
 import { useAuth } from '../context/AuthContext';
-import {
-  getUsersByFamily,
-  getPendingCompletionsForChild,
-  approveCompletion,
-  rejectCompletion,
-} from '../api/firebaseTasks';
+import { getUsersByFamily } from '../api/firebaseTasks';
+import { useCompletions } from '../context/CompletionsContext'; // your completions context
 import TaskItem from '../components/TaskItem';
 
 function ParentApprovalPage() {
   const { user, loading } = useAuth();
-  const [children, setChildren] = useState([]);  // stores children user info including time fields
-  const [pendingTasksByChild, setPendingTasksByChild] = useState({});
-  const [loadingData, setLoadingData] = useState(false);
+  const [children, setChildren] = useState([]);
   const [error, setError] = useState('');
+  const {
+    completions,
+    loading: completionsLoading,
+    error: completionsError,
+    approveCompletion,
+    rejectCompletion,
+  } = useCompletions();
 
   useEffect(() => {
     if (!user) return;
-    fetchData();
+
+    const fetchChildren = async () => {
+      setError('');
+      try {
+        const familyChildren = await getUsersByFamily(user.familyId, user.token);
+        setChildren(familyChildren);
+      } catch (e) {
+        setError('Failed to load children');
+        console.error(e);
+      }
+    };
+
+    fetchChildren();
   }, [user]);
 
-  const fetchData = async () => {
-    setLoadingData(true);
-    setError('');
-    try {
-      // Fetch children with fresh totalTime and pendingTime
-      const familyChildren = await getUsersByFamily(user.familyId, user.token);
-      setChildren(familyChildren);
-
-      // Fetch pending tasks separately, mapped by child uid
-      const tasksMap = {};
-      await Promise.all(
-        familyChildren.map(async (child) => {
-          const pending = await getPendingCompletionsForChild(child.uid, user.token);
-          tasksMap[child.uid] = pending;  // Just store array of pending tasks
-        })
-      );
-      setPendingTasksByChild(tasksMap);
-    } catch (e) {
-      setError('Failed to load pending tasks');
-      console.error(e);
-    }
-    setLoadingData(false);
-  };
+  // Group completions by child uid for display
+  const completionsByChild = completions.reduce((acc, completion) => {
+    const childId = completion.childId;
+    if (!acc[childId]) acc[childId] = [];
+    acc[childId].push(completion);
+    return acc;
+  }, {});
 
   const handleApproval = async (childId, completionId, time, isApproved) => {
     try {
       if (isApproved) {
-        await approveCompletion(completionId, childId, time, user.token);
+        await approveCompletion(completionId, childId, time);
       } else {
-        await rejectCompletion(completionId, childId, time, user.token);
+        await rejectCompletion(completionId, childId, time);
       }
-      await fetchData(); // refresh state including fresh user times and tasks
+      const familyChildren = await getUsersByFamily(user.familyId, user.token);
+      setChildren(familyChildren);
     } catch (err) {
       console.error('Approval error:', err);
       alert('❌ Failed to process task.');
     }
   };
 
-  if (loading || loadingData) {
+  if (loading || completionsLoading) {
     return (
       <Container className="mt-5 text-center">
         <Spinner animation="border" />
@@ -78,15 +76,16 @@ function ParentApprovalPage() {
   return (
     <Container className="mt-4">
       <h2>📝 Pending Tasks for Approval</h2>
-      {error && <Alert variant="danger">{error}</Alert>}
+      {(error || completionsError) && <Alert variant="danger">{error || completionsError}</Alert>}
       <Row>
+        {children.length === 0 && <p>No children found in your family.</p>}
         {children.map((child) => (
           <Col key={child.uid} md={4} className="mb-4">
             <Card>
               <Card.Header>{child.email || child.uid}</Card.Header>
               <Card.Body style={{ maxHeight: '400px', overflowY: 'auto' }}>
-                {pendingTasksByChild[child.uid]?.length ? (
-                  pendingTasksByChild[child.uid].map((task) => (
+                {completionsByChild[child.uid]?.length ? (
+                  completionsByChild[child.uid].map((task) => (
                     <div key={task.id} className="mb-3">
                       <TaskItem task={task} />
                       <div className="d-flex justify-content-between mt-2">
@@ -116,7 +115,6 @@ function ParentApprovalPage() {
                 )}
               </Card.Body>
               <Card.Footer>
-                {/* Use children state values directly for times */}
                 <div>
                   <strong>Total Time:</strong> {child.totalTime || 0} mins
                 </div>

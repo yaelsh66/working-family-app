@@ -59,29 +59,7 @@ function Sidebar() {
           <Offcanvas.Title>Family App</Offcanvas.Title>
         </Offcanvas.Header>
         <Offcanvas.Body>
-          <Nav className="flex-column mb-3">
-            {user?.role === 'parent' && (
-              <>
-                <Nav.Link as={Link} to="/parent">Parent Home</Nav.Link>
-                <Nav.Link as={Link} to="/add-child">Add Child</Nav.Link>
-                <Nav.Link as={Link} to="/tasks">Manage Tasks</Nav.Link>
-                <Nav.Link as={Link} to="/history">View History</Nav.Link>
-              </>
-            )}
-            {user?.role === 'child' && (
-              <>
-                <Nav.Link as={Link} to="/child">My Tasks</Nav.Link>
-                <Nav.Link as={Link} to="/rewards">Rewards</Nav.Link>
-              </>
-            )}
-            {!user?.uid && (
-              <>
-                <Nav.Link as={Link} to="/login">Login</Nav.Link>
-                <Nav.Link as={Link} to="/signup">Sign Up</Nav.Link>
-              </>
-            )}
-          </Nav>
-
+          
           {user?.uid && (
             <>
               <hr />

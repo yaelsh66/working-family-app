@@ -69,6 +69,7 @@ export const AuthProvider = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
   useEffect(() => {
+    
   const storedUser = JSON.parse(localStorage.getItem('user'));
   if (!storedUser?.refreshToken) return; // Don't even set the interval if no refresh token
 

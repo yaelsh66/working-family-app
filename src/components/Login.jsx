@@ -32,7 +32,7 @@ function Login() {
     const totalTime = userData.totalTime?.doubleValue || 0;
     const pendingTime = userData.pendingTime?.doubleValue || 0;
     const nickname = userData.nickname?.stringValue || '';
-    const avatarUrl = userData.avatarUrl?.stringValue || '';
+    
 
     const user = {
       uid: data.localId,
@@ -46,7 +46,6 @@ function Login() {
       totalTime,
       pendingTime,
       nickname,
-      avatarUrl,
     };
 
     localStorage.setItem('user', JSON.stringify(user));
