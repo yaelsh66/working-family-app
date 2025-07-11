@@ -1,12 +1,14 @@
-// src/components/TaskList.jsx
+// src/components/TasksList.jsx
 import React, { useEffect, useState } from 'react';
 import { Container, Spinner, Alert, ListGroup } from 'react-bootstrap';
 import { useAuth } from '../context/AuthContext';
-import { getTasksForFamily } from '../api/firebaseTasks';
+import { getTasksForFamily, updateTask } from '../api/firebaseTasks';
 import TaskItem from './TaskItem';
+import { useTaskContext } from '../context/TaskContext';
 
 function TasksList() {
   const { user, loading } = useAuth();
+  const { refreshTasks } = useTaskContext();
   const [tasks, setTasks] = useState([]);
   const [error, setError] = useState('');
 
@@ -25,6 +27,20 @@ function TasksList() {
 
     fetchTasks();
   }, [user]);
+
+  const handleUpdateTask = async (taskId, updatedData) => {
+    await updateTask(taskId, {
+      title: updatedData.title,
+      description: updatedData.description,
+      time: +updatedData.time,
+    }, user.token);
+    setTasks((prevTasks) =>
+    prevTasks.map((task) =>
+      task.id === taskId ? { ...task, ...updatedData } : task
+    )
+  );
+    await refreshTasks();
+  };
 
   if (loading) {
     return (
@@ -52,11 +68,10 @@ function TasksList() {
         <ListGroup>
           {tasks.map((task, idx) => (
             <ListGroup.Item key={idx}>
-              <TaskItem task={task}  />
+              <TaskItem task={task} onStartUpdate={handleUpdateTask} />
             </ListGroup.Item>
           ))}
         </ListGroup>
-        
       )}
     </Container>
   );

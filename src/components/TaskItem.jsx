@@ -1,10 +1,9 @@
+// src/components/TaskItem.jsx
 import React, { useState } from 'react';
 import { Card, Button, Form, Spinner, Alert } from 'react-bootstrap';
 import { useAuth } from '../context/AuthContext';
-import { updateTask } from '../api/firebaseTasks';
-import { useTaskContext } from '../context/TaskContext';
 
-function TaskItem({ task, isAssigned = false, onComplete }) {
+function TaskItem({ task, isAssigned = false, onComplete, onStartUpdate }) {
   const { user } = useAuth();
   const isParent = user?.role === 'parent';
 
@@ -12,28 +11,21 @@ function TaskItem({ task, isAssigned = false, onComplete }) {
   const [editedTask, setEditedTask] = useState({ ...task });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const { refreshTasks } = useTaskContext();
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setEditedTask((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSave = async () => {
+    if (!onStartUpdate) return;
+    setLoading(true);
+    setError('');
     try {
-      setLoading(true);
-      setError('');
-
-      const updatedFields = {
-        title: editedTask.title,
-        description: editedTask.description,
-        time: +editedTask.time,
-      };
-
-      await updateTask(task.id, updatedFields, user.token);
-      await refreshTasks();
+      await onStartUpdate(task.id, editedTask);
       setIsEditing(false);
     } catch (err) {
-      console.error('Failed to update task:', err);
+      console.error('Update failed:', err);
       setError('❌ Failed to update task.');
     } finally {
       setLoading(false);
@@ -112,17 +104,20 @@ function TaskItem({ task, isAssigned = false, onComplete }) {
               </Button>
             )}
 
-            {isParent && (
-              <Button
-                variant="warning"
-                size="sm"
-                className="ms-2"
-                onClick={() => setIsEditing(true)}
-              >
-                ✏️ Update
-              </Button>
-            )}
+            {/* Moved Update logic out! */}
           </>
+        )}
+
+        {/* Add this button if onStartUpdate is provided */}
+        {!isEditing && onStartUpdate && isParent && (
+          <Button
+            variant="warning"
+            size="sm"
+            className="mt-2"
+            onClick={() => setIsEditing(true)}
+          >
+            ✏️ Update
+          </Button>
         )}
       </Card.Body>
     </Card>

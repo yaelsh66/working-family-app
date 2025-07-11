@@ -16,20 +16,31 @@ const BackgroundWrapper = ({ children }) => {
   }, [user]);
 
   return (
-    <div
-      style={{
-        backgroundColor: color,
-        backgroundImage: image ? `url(${image})` : 'none',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat',
-        backgroundSize: 'contain',
-        minHeight: '100vh',
-        marginLeft: '250px', // account for sidebar width
-        padding: '20px'
-      }}
-    >
-      {children}
-    </div>
+    <>
+      {/* Background layer, fixed and full screen */}
+      <div
+        style={{
+          backgroundColor: color,
+          backgroundImage: image ? `url(${image})` : 'none',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+          backgroundSize: 'cover',
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          width: '100vw',
+          height: '100vh',
+          zIndex: -1,
+        }}
+      />
+
+      {/* Page content wrapper with top padding to offset fixed background */}
+      <div style={{ paddingTop: '60px' }}>
+        {children}
+      </div>
+    </>
   );
 };
 

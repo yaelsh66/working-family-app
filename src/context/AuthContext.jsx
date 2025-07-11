@@ -1,5 +1,6 @@
 import { createContext, useReducer, useContext, useEffect } from 'react';
 import { refreshIdToken } from '../api/firebaseAuth';
+import { updateUserData } from '../api/firebaseUser';
 
 const AuthContext = createContext();
 
@@ -138,6 +139,33 @@ export const AuthProvider = ({ children }) => {
       dispatch({ type: 'LOGOUT' });
     }
   }, []);
+
+  useEffect(() => {
+  const askNicknameIfNeeded = async () => {
+    if (!state.user || !state.user.uid || state.user.nickname) return;
+
+    const nickname = prompt('Welcome! Please enter a nickname:');
+    if (!nickname) return;
+
+    try {
+      await updateUserData(state.user.uid, { nickname }, state.user.token);
+      dispatch({
+        type: 'UPDATE_PROFILE',
+        payload: { nickname },
+      });
+      const updatedUser = {
+        ...state.user,
+        nickname,
+      };
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+    } catch (err) {
+      console.error('❌ Failed to update nickname:', err);
+    }
+  };
+
+  askNicknameIfNeeded();
+}, [state.user]);
+
 
   return (
     <AuthContext.Provider value={{ ...state, dispatch }}>

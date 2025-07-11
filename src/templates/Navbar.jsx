@@ -43,7 +43,10 @@ function ColorSchemesExample() {
 
         {user && (
           <div className="d-flex align-items-center text-white gap-3">
-            <span>{user.email}</span>
+            <span>
+              👋 Hi, {user.nickname || user.email}
+            </span>
+
             <Button variant="outline-light" size="sm" onClick={handleLogout}>
               Logout
             </Button>
