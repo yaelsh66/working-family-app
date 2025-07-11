@@ -446,4 +446,38 @@ export const rejectCompletion = async (completionId, childId, time, token) => {
   );
 };
 
+// firebaseTasks.js
+
+export const updateTask = async (taskId, updatedFields, token) => {
+  const payload = {
+    fields: {},
+  };
+
+  const fieldPaths = [];
+
+  for (const [key, value] of Object.entries(updatedFields)) {
+    if (value !== undefined) {
+      if (typeof value === 'number') {
+        payload.fields[key] = {
+          [Number.isInteger(value) ? 'integerValue' : 'doubleValue']: value,
+        };
+      } else {
+        payload.fields[key] = { stringValue: value };
+      }
+      fieldPaths.push(`updateMask.fieldPaths=${key}`);
+    }
+  }
+
+  const queryParams = fieldPaths.join('&');
+
+  const res = await axiosInstance.patch(
+    `/tasks/${taskId}?${queryParams}`,
+    payload,
+    {
+      headers: authHeader(token),
+    }
+  );
+
+  return res.data;
+};
 
