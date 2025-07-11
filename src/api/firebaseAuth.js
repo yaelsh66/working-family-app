@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-const API_KEY = ''; 
+
+const API_KEY = import.meta.env.VITE_FIREBASE_API_KEY;
 const BASE_URL = `https://identitytoolkit.googleapis.com/v1`;
 const PROJECT_ID = 'family-c56e3';
 
