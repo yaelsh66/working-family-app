@@ -1,5 +1,5 @@
 // src/pages/ChildTasksPage.jsx
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useEffect} from 'react';
 import { Container, Row, Col, Spinner, Alert } from 'react-bootstrap';
 import { DragDropContext, Droppable } from '@hello-pangea/dnd';
 import { useAuth } from '../context/AuthContext';
@@ -7,10 +7,14 @@ import TaskDraggable from '../components/TaskDraggable';
 import AmountBox from '../components/AmountBox';
 import { useScreenTime } from '../context/ScreenTimeContext';
 import { useTaskContext } from '../context/TaskContext';
+import { getParentsByFamily, submitCompletion } from '../api/firebaseTasks';
+import TaskListCard from '../components/TaskListCard';
 
 
 function ChildTasksPage() {
   const { user, loading } = useAuth();
+  const [parents, setParents] = useState([]);
+
   const {
     assignedTasks,
     availableTasks,
@@ -21,6 +25,17 @@ function ChildTasksPage() {
   const [error, setError] = useState('');
 
   const assignedTotal = assignedTasks.reduce((sum, task) => sum + (task.time || 0), 0);
+
+  useEffect(() => {
+      if (!user?.familyId || !user?.token) return;
+
+      getParentsByFamily(user.familyId, user.token)
+        .then(setParents)
+        .catch((e) => {
+          console.error('Error fetching parents', e);
+        });
+    }, [user]);
+
 
   const onDragEnd = async (result) => {
   const { source, destination } = result;
@@ -60,44 +75,35 @@ function ChildTasksPage() {
   }
 };
 
-  const handleComplete = async (task) => {
-    try {
-      const completionRecord = {
-        fields: {
-          taskId: { stringValue: task.id },
-          title: { stringValue: task.title },
-          completedAt: { timestampValue: new Date().toISOString() },
-          time: {
-            doubleValue: typeof task.time === 'number' ? task.time : parseFloat(task.time) || 0,
-          },
-          childId: { stringValue: user.uid },
-          familyId: { stringValue: user.familyId },
-          approved: { booleanValue: false },
-        },
-      };
+const handleComplete = async (task) => {
+  // 1. Optimistically remove the task from assignedTasks immediately
+  try {
+    // Update UI instantly by removing user from task assignment locally
+    const newAssignedTo = (task.assignedTo || []).filter(uid => uid !== user.uid);
 
-      await fetch(
-        `https://firestore.googleapis.com/v1/projects/family-c56e3/databases/(default)/documents/completions`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${user.token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(completionRecord),
-        }
-      );
+    // Use optimistic UI update function from context (or fallback)
+    await reassignTaskOptimistic(task.id, newAssignedTo, {
+      newAssigned: assignedTasks.filter(t => t.id !== task.id),
+      newAvailable: availableTasks, // assuming task doesn't move to available here
+    });
 
-      const newAssignedTo = (task.assignedTo || []).filter((uid) => uid !== user.uid);
-      await reassignTask(task.id, newAssignedTo);
-      await addToPendingScreenTime(task.time);
+    // 2. Call backend to submit completion
+    await submitCompletion(task, user);
 
-      alert(`✅ Task "${task.title}" marked as completed! Waiting for approval.`);
-    } catch (error) {
-      console.error('Failed to mark task as completed:', error);
-      alert('❌ Failed to complete task. Try again later.');
-    }
-  };
+    // 3. Update pending screen time
+    await addToPendingScreenTime(task.time);
+
+    alert(`✅ Task "${task.title}" marked as completed! Waiting for approval.`);
+  } catch (error) {
+    console.error('Failed to mark task as completed:', error);
+    alert('❌ Failed to complete task. Try again later.');
+
+    // Optional: revert UI if needed (e.g., re-add task back)
+    // Here you can refetch tasks or add the task back manually
+  }
+};
+
+
 
   if (loading) {
     return (
@@ -117,48 +123,52 @@ function ChildTasksPage() {
 
   return (
     <Container className="mt-5">
-      <h2 className="mb-4">👦 {user.email}'s Tasks</h2>
+      <h2 className="mb-4">👦 {user.nickname}'s Tasks</h2>
       {error && <Alert variant="danger">{error}</Alert>}
 
       <DragDropContext onDragEnd={onDragEnd}>
         <Row>
           <Col md={6}>
-            <h4>Assigned Tasks</h4>
-            <Droppable droppableId="assigned">
-              {(provided) => (
-                <div ref={provided.innerRef} {...provided.droppableProps}>
-                  {assignedTasks.map((task, idx) => (
-                    <TaskDraggable
-                      key={task.id}
-                      task={task}
-                      index={idx}
-                      isAssigned={true}
-                      onComplete={handleComplete}
-                    />
-                  ))}
-                  {provided.placeholder}
-                </div>
-              )}
-            </Droppable>
+            <TaskListCard title="Assigned Tasks">
+              
+              <Droppable droppableId="assigned">
+                {(provided) => (
+                  <div ref={provided.innerRef} {...provided.droppableProps}>
+                    {assignedTasks.map((task, idx) => (
+                      <TaskDraggable
+                        key={task.id}
+                        task={task}
+                        index={idx}
+                        isAssigned={true}
+                        onComplete={handleComplete}
+                      />
+                    ))}
+                    {provided.placeholder}
+                  </div>
+                )}
+              </Droppable>
+            </TaskListCard>
           </Col>
 
           <Col md={6}>
-            <h4>Available Tasks</h4>
-            <Droppable droppableId="available">
-              {(provided) => (
-                <div ref={provided.innerRef} {...provided.droppableProps}>
-                  {availableTasks.map((task, idx) => (
-                    <TaskDraggable
-                      key={task.id}
-                      task={task}
-                      index={idx}
-                      isAssigned={false}
-                    />
-                  ))}
-                  {provided.placeholder}
-                </div>
-              )}
-            </Droppable>
+            <TaskListCard title='Available Tasks'>
+              
+              <Droppable droppableId="available">
+                {(provided) => (
+                  <div ref={provided.innerRef} {...provided.droppableProps}>
+                    {availableTasks.map((task, idx) => (
+                      <TaskDraggable
+                        key={task.id}
+                        task={task}
+                        index={idx}
+                        isAssigned={false}
+                      />
+                    ))}
+                    {provided.placeholder}
+                  </div>
+                )}
+              </Droppable>
+            </TaskListCard>
           </Col>
         </Row>
       </DragDropContext>

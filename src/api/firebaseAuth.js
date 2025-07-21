@@ -59,13 +59,15 @@ export const refreshIdToken = async (refreshToken) => {
 };
 
 // 🏠 Create Firestore document for the new user
-export const createUserDoc = async (uid, idToken, role, familyId) => {
+export const createUserDoc = async (uid, idToken, role, familyId, email) => {
   const url = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/users?documentId=${uid}`;
 
   const payload = {
     fields: {
       role: { stringValue: role },
       familyId: { stringValue: familyId },
+      email: { stringValue: email },
+      whatsAppNumber: { stringValue: '' },
       backgroundImage: { stringValue: '' },
       backgroundColor: { stringValue: '' },
       totalTime: { doubleValue: 0 },

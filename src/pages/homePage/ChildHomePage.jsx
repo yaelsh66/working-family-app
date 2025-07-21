@@ -12,7 +12,7 @@ import { useScreenTime } from '../../context/ScreenTimeContext';
 function ChildHomePage() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { totalScreenTime, pendingScreenTime, withdrawScreenTime } = useScreenTime();
+  const { totalScreenTime, pendingScreenTime, withdrawScreenTime, refreshScreenTime } = useScreenTime();
 
   
 
@@ -49,10 +49,10 @@ function ChildHomePage() {
   return (
     <div style={{ minHeight: '100vh', paddingTop: '50px' }}>
       <Container className="text-center">
-        <h2 className="mb-4">Hi 👦 {user?.email}</h2>
+        <h2 className="mb-4">Hi 👦 {user?.nickname}</h2>
 
         <Button className="btn-orange" size="lg" onClick={handleGoToTasks}>
-          Go to My Tasks
+          Start Working
         </Button>
 
 
@@ -69,6 +69,10 @@ function ChildHomePage() {
           </Col>
           <Col md={2}>
             <AmountBox label="💰 Pending Time" time={pendingScreenTime} />
+          </Col>
+          <Col>
+            <Button onClick={refreshScreenTime}>🔄 Refresh Time</Button>
+
           </Col>
         </Row>
         

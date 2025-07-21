@@ -59,6 +59,8 @@ export const updateUserData = async (uid, updates, idToken) => {
     fields.nickname = { stringValue: updates.nickname };
   if (updates.avatarUrl !== undefined)
     fields.avatarUrl = { stringValue: updates.avatarUrl };
+  if (updates.whatsAppNumber !== undefined)
+    fields.whatsAppNumber = { stringValue: updates.whatsAppNumber };
 
   const payload = { fields };
 

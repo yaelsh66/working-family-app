@@ -1,6 +1,7 @@
 import { createContext, useContext, useReducer, useEffect, useRef } from 'react';
 import { useAuth } from './AuthContext';
 import { updateChildTime } from '../api/firebaseUser';
+import { getUserData  } from '../api/firebaseUser';
 
 const ScreenTimeContext = createContext();
 
@@ -78,6 +79,41 @@ export const ScreenTimeProvider = ({ children }) => {
     }, 500); // ⏳ Wait 500ms before firing
   };
 
+
+  const refreshScreenTime = async () => {
+    if (!user?.uid || !user?.token) return;
+
+    try {
+      const fields = await getUserData(user.uid, user.token);
+
+      // Parse Firestore document fields safely
+      const total = fields?.totalTime?.doubleValue
+        ? parseFloat(fields.totalTime.doubleValue)
+        : 0;
+      const pending = fields?.pendingTime?.doubleValue
+        ? parseFloat(fields.pendingTime.doubleValue)
+        : 0;
+
+      dispatch({
+        type: 'INIT',
+        payload: {
+          totalScreenTime: total,
+          pendingScreenTime: pending,
+        },
+      });
+
+      lastWrittenRef.current = {
+        totalScreenTime: total,
+        pendingScreenTime: pending,
+      };
+    } catch (err) {
+      console.error('❌ Failed to refresh screen time:', err);
+    }
+  };
+
+
+
+
   const withdrawScreenTime = async (minutes) => {
     const newTotal = Math.max(0, state.totalScreenTime - minutes);
     dispatch({ type: 'WITHDRAW', payload: minutes });
@@ -126,6 +162,7 @@ export const ScreenTimeProvider = ({ children }) => {
         addToPendingScreenTime,
         approvePendingScreenTime,
         withdrawScreenTime,
+        refreshScreenTime,
       }}
     >
       {children}

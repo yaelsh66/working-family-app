@@ -33,7 +33,7 @@ function AddTaskForm() {
     const task = {
       title,
       description,
-      time: user.role === 'parent' ? parseFloat(time) || 0 : 0,
+      time: parseFloat(time) || 0,
       familyId: user.familyId,
       createdBy: user.uid,
       
@@ -75,7 +75,7 @@ function AddTaskForm() {
           />
         </FloatingLabel>
 
-        {user.role === 'parent' && (
+        
           <FloatingLabel label="Reward Amount (₪)" className="mb-3">
             <Form.Control
               type="number"
@@ -86,7 +86,7 @@ function AddTaskForm() {
               step="1"
             />
           </FloatingLabel>
-        )}
+        
 
         <Button type="submit" variant="success" className="w-100">Add Task</Button>
         {success && <p className="mt-3 text-success">✅ Task added successfully!</p>}

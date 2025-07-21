@@ -1,7 +1,6 @@
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import { createContext, useContext, useReducer, useEffect } from 'react';
 import { useAuth } from './AuthContext';
-import {
-  
+import {  
   getPendingCompletionsForFamily,
   approveCompletion,
   rejectCompletion,

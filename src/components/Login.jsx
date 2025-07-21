@@ -32,7 +32,7 @@ function Login() {
     const totalTime = userData.totalTime?.doubleValue || 0;
     const pendingTime = userData.pendingTime?.doubleValue || 0;
     const nickname = userData.nickname?.stringValue || '';
-    
+    const whatsAppNumber = userData.whatsAppNumber || '';
 
     const user = {
       uid: data.localId,
@@ -46,6 +46,7 @@ function Login() {
       totalTime,
       pendingTime,
       nickname,
+      whatsAppNumber,
     };
 
     localStorage.setItem('user', JSON.stringify(user));

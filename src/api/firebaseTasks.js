@@ -12,6 +12,60 @@ const axiosInstance = axios.create({
 
 const authHeader = (token) => ({ Authorization: `Bearer ${token}` });
 
+
+// src/api/firebaseTasks.js
+export const getParentsByFamily = async (familyId, token) => {
+  const BASE_URL = 'https://firestore.googleapis.com/v1/projects/family-c56e3/databases/(default)/documents:runQuery';
+
+  const payload = {
+    structuredQuery: {
+      from: [{ collectionId: 'users' }],
+      where: {
+        compositeFilter: {
+          op: 'AND',
+          filters: [
+            {
+              fieldFilter: {
+                field: { fieldPath: 'familyId' },
+                op: 'EQUAL',
+                value: { stringValue: familyId },
+              },
+            },
+            {
+              fieldFilter: {
+                field: { fieldPath: 'role' },
+                op: 'EQUAL',
+                value: { stringValue: 'parent' },
+              },
+            },
+          ],
+        },
+      },
+    },
+  };
+
+  try {
+    const response = await axiosInstance.post(BASE_URL, payload, {
+      headers: authHeader(token),
+    });
+
+    return response.data
+      .filter(res => res.document)
+      .map(res => {
+        const f = res.document.fields;
+        return {
+          uid: res.document.name.split('/').pop(),
+          whatsAppNumber: f.whatsAppNumber?.stringValue || '',
+          nickname: f.nickname?.stringValue || '',
+          email: f.email?.stringValue || '',
+        };
+      });
+  } catch (error) {
+    console.error('Failed to fetch parents:', error);
+    throw error;
+  }
+};
+
 export const getUsersByFamily = async (familyId, token) => {
   const url = `${BASE_URL}:runQuery`;
 
@@ -54,10 +108,12 @@ export const getUsersByFamily = async (familyId, token) => {
         return {
           uid: res.document.name.split('/').pop(),
           email: f.email?.stringValue || '',
+          nickname: f.nickname?.stringValue || '',
           role: f.role?.stringValue || '',
           familyId: f.familyId?.stringValue || '',
           totalTime: parseFloat(f.totalTime?.doubleValue || f.totalTime?.integerValue || '0'),
           pendingTime: parseFloat(f.pendingTime?.doubleValue || f.pendingTime?.integerValue || '0'),
+          whatsAppNumber: f.whatsAppNumber?.stringValue || '',
         };
       });
   } catch (error) {
@@ -65,6 +121,41 @@ export const getUsersByFamily = async (familyId, token) => {
     throw error;
   }
 };
+
+;
+
+// src/api/firebaseCompletions.js
+
+export const submitCompletion = async (task, user) => {
+  const url = `${BASE_URL}/completions`;
+
+  const payload = {
+    fields: {
+      taskId: { stringValue: task.id },
+      title: { stringValue: task.title },
+      completedAt: { timestampValue: new Date().toISOString() },
+      time: {
+        doubleValue: typeof task.time === 'number' ? task.time : parseFloat(task.time) || 0,
+      },
+      childId: { stringValue: user.uid },
+      familyId: { stringValue: user.familyId },
+      approved: { booleanValue: false },
+    },
+  };
+
+  try {
+    const response = await axiosInstance.post(url, payload, {
+      headers: authHeader(user.token),
+    });
+
+    return response.data;
+  } catch (error) {
+    console.error('Failed to submit completion:', error.response?.data || error.message);
+    throw error;
+  }
+};
+
+
 
 export const withdrawTime = async (childId, minutes, token) => {
   try {

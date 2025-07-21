@@ -5,6 +5,8 @@ import { getUsersByFamily } from '../api/firebaseTasks';
 import { useCompletions } from '../context/CompletionsContext'; // your completions context
 import TaskItem from '../components/TaskItem';
 
+
+
 function ParentApprovalPage() {
   const { user, loading } = useAuth();
   const [children, setChildren] = useState([]);
@@ -16,6 +18,8 @@ function ParentApprovalPage() {
     approveCompletion,
     rejectCompletion,
   } = useCompletions();
+  
+
 
   useEffect(() => {
     if (!user) return;
@@ -82,7 +86,8 @@ function ParentApprovalPage() {
         {children.map((child) => (
           <Col key={child.uid} md={4} className="mb-4">
             <Card>
-              <Card.Header>{child.email || child.uid}</Card.Header>
+              
+              <Card.Header>{child.nickname || child.email || child.uid}</Card.Header>
               <Card.Body style={{ maxHeight: '400px', overflowY: 'auto' }}>
                 {completionsByChild[child.uid]?.length ? (
                   completionsByChild[child.uid].map((task) => (
