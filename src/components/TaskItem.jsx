@@ -2,9 +2,12 @@
 import React, { useState } from 'react';
 import { Card, Button, Form, Spinner, Alert } from 'react-bootstrap';
 import { useAuth } from '../context/AuthContext';
+import { useTaskContext } from '../context/TaskContext';
+
 
 function TaskItem({ task, isAssigned = false, onComplete, onStartUpdate }) {
   const { user } = useAuth();
+  const { deleteTask} = useTaskContext();
   const isParent = user?.role === 'parent';
 
   const [isEditing, setIsEditing] = useState(false);
@@ -29,6 +32,15 @@ function TaskItem({ task, isAssigned = false, onComplete, onStartUpdate }) {
       setError('❌ Failed to update task.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    try{
+      await deleteTask(task.id);
+      setIsEditing(false);
+    }catch (err) {
+      console.error('Delete task failed: ', err);
     }
   };
 
@@ -84,6 +96,14 @@ function TaskItem({ task, isAssigned = false, onComplete, onStartUpdate }) {
               >
                 ❌ Cancel
               </Button>
+              <Button
+                variant="delete"
+                size="sm"
+                onClick={handleDelete}
+                disabled={loading}
+              >
+                {loading ? <Spinner size="sm" animation="border" /> : 'Delete'}
+              </Button>
             </div>
           </>
         ) : (
@@ -109,7 +129,7 @@ function TaskItem({ task, isAssigned = false, onComplete, onStartUpdate }) {
         )}
 
         {/* Add this button if onStartUpdate is provided */}
-        {!isEditing && onStartUpdate && isParent && (
+        {!isEditing && onStartUpdate  && (
           <Button
             variant="warning"
             size="sm"

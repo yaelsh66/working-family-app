@@ -2,45 +2,27 @@
 import React, { useEffect, useState } from 'react';
 import { Container, Spinner, Alert, ListGroup } from 'react-bootstrap';
 import { useAuth } from '../context/AuthContext';
-import { getTasksForFamily, updateTask } from '../api/firebaseTasks';
+
 import TaskItem from './TaskItem';
 import { useTaskContext } from '../context/TaskContext';
 
 function TasksList() {
+  const { allFamilyTasks: tasks, refreshTasks } = useTaskContext();
+
   const { user, loading } = useAuth();
-  const { refreshTasks } = useTaskContext();
-  const [tasks, setTasks] = useState([]);
+  
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    if (!user) return;
-
-    const fetchTasks = async () => {
-      try {
-        const tasksData = await getTasksForFamily(user.familyId, user.token);
-        setTasks(tasksData);
-      } catch (err) {
-        console.error('Failed to fetch tasks:', err);
-        setError('Could not load tasks.');
-      }
-    };
-
-    fetchTasks();
-  }, [user]);
-
   const handleUpdateTask = async (taskId, updatedData) => {
-    await updateTask(taskId, {
-      title: updatedData.title,
-      description: updatedData.description,
-      time: +updatedData.time,
-    }, user.token);
-    setTasks((prevTasks) =>
-    prevTasks.map((task) =>
-      task.id === taskId ? { ...task, ...updatedData } : task
-    )
-  );
-    await refreshTasks();
-  };
+  await updateTask(taskId, {
+    title: updatedData.title,
+    description: updatedData.description,
+    time: +updatedData.time,
+  }, user.token);
+  
+  await refreshTasks(); // context will update
+};
+
 
   if (loading) {
     return (

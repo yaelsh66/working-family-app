@@ -20,7 +20,7 @@ function AmountBox({ label, time, size = 'medium', icon }) {
       <Card.Body>
         <div className="d-flex justify-content-between align-items-center">
           <div>
-            <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>{label}</div>
+            <div style={{ fontSize: '1.2rem', opacity: 0.9 }}>{label}</div>
             <div style={{ fontWeight: 'bold' }}>{time} min</div>
           </div>
           {icon && <div style={{ fontSize: '1.5rem' }}>{icon}</div>}

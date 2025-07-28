@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Form, Button, FloatingLabel, Container, Alert } from 'react-bootstrap';
 import { useAuth } from '../../context/AuthContext';
-import { addTaskToFirestore } from '../../api/firebaseTasks';
+
+import { useTaskContext } from '../../context/TaskContext';
 
 function AddTaskForm() {
   const { user, loading } = useAuth();  // ✅ Include loading state
@@ -9,6 +10,8 @@ function AddTaskForm() {
   const [description, setDescription] = useState('');
   const [time, setAmount] = useState('');
   const [success, setSuccess] = useState(false);
+
+  const { addTask} = useTaskContext();
 
   if (loading) {
     return (
@@ -41,7 +44,7 @@ function AddTaskForm() {
     };
 
     try {
-      await addTaskToFirestore(task, user.token);
+      await addTask(task, user.token);
       setTitle('');
       setDescription('');
       setAmount('');
@@ -65,7 +68,7 @@ function AddTaskForm() {
           />
         </FloatingLabel>
 
-        <FloatingLabel label="Description" className="mb-3">
+        <FloatingLabel label="Comment" className="mb-3">
           <Form.Control
             as="textarea"
             placeholder="Describe the task"
@@ -76,7 +79,7 @@ function AddTaskForm() {
         </FloatingLabel>
 
         
-          <FloatingLabel label="Reward Amount (₪)" className="mb-3">
+          <FloatingLabel label="Reward Screen Time (minutes)" className="mb-3">
             <Form.Control
               type="number"
               placeholder="Amount in shekels"

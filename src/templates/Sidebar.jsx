@@ -52,7 +52,7 @@ function Sidebar() {
 
   return (
     <>
-      <Button variant="light" onClick={handleShow} className="m-2">☰ Menu</Button>
+      <Button variant="light" onClick={handleShow} className="m-2">☰ Fun Time</Button>
 
       <Offcanvas show={show} onHide={handleClose} backdrop={false} scroll={true} placement="start">
         <Offcanvas.Header closeButton>
@@ -103,8 +103,8 @@ function Sidebar() {
 
           {user?.role === 'child' && (
             <div className="mt-4">
-              <AmountBox label="Total Time" time={totalScreenTime} />
-              <AmountBox label="Pending Time" time={pendingScreenTime} />
+              <AmountBox label="🕒 My Screen Time" time={totalScreenTime} />
+              <AmountBox label="🕒 Waiting for approval" time={pendingScreenTime} />
             </div>
           )}
         </Offcanvas.Body>

@@ -1,6 +1,7 @@
 // src/context/TaskContext.js
 import { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
 import * as firebaseTasks from '../api/firebaseTasks';
+import { addTaskToFirestore, deleteTaskFromFirestore } from '../api/firebaseTasks';
 import { useAuth } from './AuthContext';
 
 export const TaskContext = createContext();
@@ -30,6 +31,7 @@ export const TaskProvider = ({ children }) => {
   const { user } = useAuth();
   const [state, dispatch] = useReducer(taskReducer, initialState);
 
+  
   const fetchTasks = useCallback(async () => {
     if (!user?.token || !user?.familyId || !user?.uid) return;
 
@@ -60,6 +62,25 @@ export const TaskProvider = ({ children }) => {
   useEffect(() => {
     if (user) fetchTasks();
   }, [user, fetchTasks]);
+
+   const addTask = async (task) => {
+    try{
+      await addTaskToFirestore(task, user.token);
+      await fetchTasks();
+    } catch (err) {
+      console.error('Failed to add new task: ', err)
+    }
+    
+  };
+
+  const deleteTask = async (taskId) => {
+    try{
+      await deleteTaskFromFirestore(taskId, user.token);
+      await fetchTasks();
+    } catch (err) {
+      console.error('Failed to delete task: ', err);
+    }
+  };
 
   const reassignTask = async (taskId, newAssignedTo) => {
     try {
@@ -96,6 +117,8 @@ export const TaskProvider = ({ children }) => {
     refreshTasks: fetchTasks,
     reassignTask,
     reassignTaskOptimistic,
+    addTask,
+    deleteTask,
   };
 
   return <TaskContext.Provider value={value}>{children}</TaskContext.Provider>;

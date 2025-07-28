@@ -1,12 +1,11 @@
 // src/pages/ChildHomePage.jsx
 import  '../../App.css';
-import React from 'react';
 import { Container, Button, Row, Col } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import AmountBox from '../../components/AmountBox';
 
-import { withdrawTime } from '../../api/firebaseTasks';
+
 import { useScreenTime } from '../../context/ScreenTimeContext';
 
 function ChildHomePage() {
@@ -58,7 +57,7 @@ function ChildHomePage() {
 
         <Row className="justify-content-center mt-5">
           <Col md={6}>
-            <AmountBox label="💰 Total Time" time={totalScreenTime} />
+            <AmountBox label="🕒 My Screen Time" time={totalScreenTime} />
             <Button
               className="btn btn-danger mt-2"
               onClick={() => handleWithdraw()}
@@ -68,7 +67,7 @@ function ChildHomePage() {
             </Button>
           </Col>
           <Col md={2}>
-            <AmountBox label="💰 Pending Time" time={pendingScreenTime} />
+            <AmountBox label="🕒 Waiting for approval" time={pendingScreenTime} />
           </Col>
           <Col>
             <Button onClick={refreshScreenTime}>🔄 Refresh Time</Button>

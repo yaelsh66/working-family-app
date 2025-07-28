@@ -23,7 +23,7 @@ function ColorSchemesExample() {
   };
 
   return (
-    <Navbar bg="dark" data-bs-theme="dark">
+    <Navbar bg="dark" data-bs-theme="dark" fixed="top">
       <Container>
         <Navbar.Brand as={Link} to={getHomeLink()}>Home</Navbar.Brand> {/* ✅ Use Link */}
         <Nav className="me-auto">

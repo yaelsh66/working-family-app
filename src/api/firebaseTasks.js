@@ -572,3 +572,14 @@ export const updateTask = async (taskId, updatedFields, token) => {
   return res.data;
 };
 
+export const deleteTaskFromFirestore = async (taskId, token) => {
+  try {
+    const res = await axiosInstance.delete(`/tasks/${taskId}`, {
+      headers: authHeader(token),
+    });
+    return res.data;
+  } catch (error) {
+    console.error(`Failed to delete task ${taskId}:`, error.response?.data || error.message);
+    throw error;
+  }
+};

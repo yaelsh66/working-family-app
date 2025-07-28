@@ -8,7 +8,7 @@ import AmountBox from '../components/AmountBox';
 import { useScreenTime } from '../context/ScreenTimeContext';
 import { useTaskContext } from '../context/TaskContext';
 import { getParentsByFamily, submitCompletion } from '../api/firebaseTasks';
-import TaskListCard from '../components/TaskListCard';
+import './ChildTasksPage.css'
 
 
 function ChildTasksPage() {
@@ -18,9 +18,9 @@ function ChildTasksPage() {
   const {
     assignedTasks,
     availableTasks,
-    reassignTask,
     reassignTaskOptimistic,
   } = useTaskContext();
+  
   const { addToPendingScreenTime } = useScreenTime();
   const [error, setError] = useState('');
 
@@ -129,11 +129,11 @@ const handleComplete = async (task) => {
       <DragDropContext onDragEnd={onDragEnd}>
         <Row>
           <Col md={6}>
-            <TaskListCard title="Assigned Tasks">
-              
+            
+              <h4>Assigned Tasks</h4>
               <Droppable droppableId="assigned">
                 {(provided) => (
-                  <div ref={provided.innerRef} {...provided.droppableProps}>
+                  <div className='task-column' ref={provided.innerRef} {...provided.droppableProps}>
                     {assignedTasks.map((task, idx) => (
                       <TaskDraggable
                         key={task.id}
@@ -147,15 +147,15 @@ const handleComplete = async (task) => {
                   </div>
                 )}
               </Droppable>
-            </TaskListCard>
+           
           </Col>
 
           <Col md={6}>
-            <TaskListCard title='Available Tasks'>
-              
+            
+              <h4>Available Tasks</h4>
               <Droppable droppableId="available">
                 {(provided) => (
-                  <div ref={provided.innerRef} {...provided.droppableProps}>
+                  <div className='task-column' ref={provided.innerRef} {...provided.droppableProps}>
                     {availableTasks.map((task, idx) => (
                       <TaskDraggable
                         key={task.id}
@@ -168,7 +168,7 @@ const handleComplete = async (task) => {
                   </div>
                 )}
               </Droppable>
-            </TaskListCard>
+            
           </Col>
         </Row>
       </DragDropContext>

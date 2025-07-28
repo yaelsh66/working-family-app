@@ -1,18 +1,43 @@
 import { Link } from "react-router-dom";
-import { Container, Row, Col, Card, Button } from "react-bootstrap";
+import { Container, Row, Col, Card, Button, Image } from "react-bootstrap";
 
 function PublicHomePage() {
+
+  
   return (
     <Container className="py-5">
       <header className="text-center mb-5">
-        <h1 className="display-4">Smart Pocket Money Family</h1>
-        <p className="lead">The best app in the world to earn money</p>
-        <Button as={Link} to="/signup" variant="primary" size="lg">
+        <h1 className="display-4">Working Family App</h1>
+        <p className="lead" style={{ fontSize: '40px' }}>Kids earn sceen time by doing household chores</p>
+        <Button as={Link} to="/signup" variant="primary" size='lg'>
           Get Started
         </Button>
       </header>
-
-      <Row xs={1} md={3} className="g-4">
+      <header className="text-center mb-5">
+        <h1 className="display-4" style={{ textDecoration: 'underline', fontSize: '50px' }}>How does it work?</h1>
+        <p className="lead" style={{ textAlign: 'left', fontSize: '40px' }}>1. The family signs in with separate accounts for parents and kids.</p>
+        <Image src="/../../../public/Image1.jpeg" thumbnail  
+        style={{ width: '250px', height: 'auto' }}
+        />
+        <p className="lead" style={{ textAlign: 'left', fontSize: '40px' }}>2. Parents and kids suggest chores with associated screen time rewards.</p>
+        <Image src="/../../../public/Image2.jpeg" thumbnail  
+        style={{ width: '250px', height: 'auto' }}
+        />
+        <p className="lead" style={{ textAlign: 'left', fontSize: '40px' }}>3. Kids complete the chores and submit them for parental approval.</p>
+        <Image src="/../../../public/Image3.jpeg" thumbnail  
+        style={{ width: '250px', height: 'auto' }}
+        />
+        <p className="lead" style={{ textAlign: 'left', fontSize: '40px' }}>4. Once approved, the earned screen time is added to the kid’s account.</p>
+        <Image src="/../../../public/Image4.PNG" thumbnail  
+        style={{ width: '250px', height: 'auto' }}
+        />
+        <p className="lead" style={{ textAlign: 'left', fontSize: '40px' }}>5. When screen time is used, parents or kids update the remaining balance.</p>
+        <Image src="/../../../public/Image5.jpeg" thumbnail  
+        style={{ width: '250px', height: 'auto' }}
+        />
+      </header>
+    
+    {/*  <Row xs={1} md={3} className="g-4">
         <Col>
           <Card className="h-100 text-center shadow-sm">
             <Card.Img
@@ -64,6 +89,7 @@ function PublicHomePage() {
           </Card>
         </Col>
       </Row>
+      */}
     </Container>
   );
 }
