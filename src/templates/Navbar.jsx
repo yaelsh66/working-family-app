@@ -70,10 +70,11 @@ function ColorSchemesExample() {
   return (
     <Navbar bg="dark" data-bs-theme="dark" fixed="top" expand="lg">
       <Container>
-        <Navbar.Brand as={Link} to={getHomeLink()}>Home</Navbar.Brand>
+        <Navbar.Brand as={Link} to="/">Home</Navbar.Brand>
         <Nav className="me-auto">
           {user && (
             <>
+              <Nav.Link as={Link} to={getHomeLink()}>My Home</Nav.Link>
               <Nav.Link as={Link} to="/newtask">New Task</Nav.Link>
               <Nav.Link as={Link} to="/tastsList">Tasks</Nav.Link>
             </>

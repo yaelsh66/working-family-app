@@ -23,7 +23,7 @@ function App() {
               <Routes>
                 <Route path="/" element={<PublicHomePage />} />
                 <Route path='/week' element={<WeeklyTable />} />
-                <Route path="/parent" element={<PublicHomePage />} />
+                <Route path="/parent" element={<ParentHomePage />} />
                 <Route path="/child" element={<ChildHomePage />} />
                 <Route path="/child/tasks" element={<ChildTasksPage />} />
                 <Route path="/login" element={<Login />} />
