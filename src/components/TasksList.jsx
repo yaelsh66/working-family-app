@@ -7,21 +7,25 @@ import TaskItem from './TaskItem';
 import { useTaskContext } from '../context/TaskContext';
 
 function TasksList() {
-  const { allFamilyTasks: tasks, refreshTasks } = useTaskContext();
+  const { allFamilyTasks: tasks, updateTask} = useTaskContext();
 
   const { user, loading } = useAuth();
   
   const [error, setError] = useState('');
 
   const handleUpdateTask = async (taskId, updatedData) => {
-  await updateTask(taskId, {
-    title: updatedData.title,
-    description: updatedData.description,
-    time: +updatedData.time,
-  }, user.token);
-  
-  await refreshTasks(); // context will update
-};
+    setError('');
+    try {
+      await updateTask(taskId, {
+        title: updatedData.title,
+        description: updatedData.description,
+        time: Number(updatedData.time),
+      });
+    } catch (err) {
+      console.error('Update failed in TasksList:', err);
+      setError('❌ Failed to update task.');
+    }
+  };
 
 
   if (loading) {
@@ -41,7 +45,7 @@ function TasksList() {
   }
 
   return (
-    <Container className="mt-5" style={{ maxWidth: '800px' }}>
+    <Container className="mt-5" >
       <h2 className="mb-4">📋 Task List</h2>
       {error && <Alert variant="danger">{error}</Alert>}
       {tasks.length === 0 ? (

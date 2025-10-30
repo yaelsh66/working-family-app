@@ -1,0 +1,56 @@
+.brawl-wrapper {
+  max-width: 800px;
+}
+
+.category-container {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2rem;
+  margin-top: 2rem;
+}
+
+.category-column {
+  min-width: 150px;
+  padding: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  background: #f9f9f9;
+  flex: 1 1 200px;
+}
+
+.category-list {
+  list-style-type: none;
+  padding-left: 0;
+  margin: 0;
+}
+
+.category-item {
+  padding: 6px 10px;
+  border-bottom: 1px solid #ccc;
+  background-color: #fff;
+  border-radius: 4px;
+  margin-bottom: 4px;
+}
+
+.category-item.empty {
+  height: 24px;
+  border-bottom: 1px dashed #ccc;
+  background-color: #f1f1f1;
+}
+
+.category-column.category1 {
+  background-color: #ffe4e1;
+}
+
+.category-column.category2 {
+  background-color: #e0f7fa;
+}
+
+.category-column.category1 .category-item {
+  background-color: #ffebee;
+}
+
+.category-column.category2 .category-item {
+  background-color: #e3f2fd;
+}
